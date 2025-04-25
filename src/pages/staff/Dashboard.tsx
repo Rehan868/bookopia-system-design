@@ -104,31 +104,31 @@ const timelineEvents = [
     time: "08:00 AM", 
     title: "Housekeeping started", 
     description: "Cleaning team began work on Floor 2", 
-    status: "completed" 
+    status: "completed" as const
   },
   { 
     time: "10:30 AM", 
     title: "Room 304 ready", 
     description: "Room prepared for early check-in", 
-    status: "completed" 
+    status: "completed" as const
   },
   { 
     time: "01:00 PM", 
     title: "Meeting with suppliers", 
     description: "Discussion about new amenities", 
-    status: "current" 
+    status: "current" as const
   },
   { 
     time: "03:45 PM", 
     title: "VIP Guest arrival", 
     description: "Special preparation required for Room 501", 
-    status: "upcoming" 
+    status: "upcoming" as const
   },
   { 
     time: "06:00 PM", 
     title: "Shift handover", 
     description: "Evening staff briefing and updates", 
-    status: "upcoming" 
+    status: "upcoming" as const
   }
 ];
 
