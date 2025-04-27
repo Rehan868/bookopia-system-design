@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { createBooking } from '@/services/api';
+import { createBooking, updateBooking } from '@/services/api';
 
 interface BookingFormData {
   reference: string;
@@ -190,40 +189,40 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Submitting booking data:', formData);
-    
     try {
+      const bookingData = {
+        booking_number: formData.reference,
+        guest_name: formData.guestName,
+        guest_email: formData.guestEmail,
+        guest_phone: formData.guestPhone,
+        check_in: format(formData.checkIn, 'yyyy-MM-dd'),
+        check_out: format(formData.checkOut, 'yyyy-MM-dd'),
+        room_number: formData.roomNumber,
+        property: formData.property,
+        adults: formData.adults,
+        children: formData.children,
+        amount: formData.totalAmount,
+        base_rate: formData.baseRate,
+        amount_paid: formData.amountPaid,
+        commission: formData.commission,
+        tourism_fee: formData.tourismFee,
+        vat: formData.vat,
+        net_to_owner: formData.netToOwner,
+        security_deposit: formData.securityDeposit,
+        remaining_amount: formData.pendingAmount,
+        status: formData.status,
+        payment_status: formData.paymentStatus,
+        notes: formData.notes
+      };
+
       if (mode === 'add') {
-        await createBooking({
-          booking_number: formData.reference,
-          guest_name: formData.guestName,
-          guestEmail: formData.guestEmail,
-          guestPhone: formData.guestPhone,
-          property: formData.property,
-          room_number: formData.roomNumber,
-          check_in: formData.checkIn instanceof Date ? format(formData.checkIn, 'yyyy-MM-dd') : formData.checkIn,
-          check_out: formData.checkOut instanceof Date ? format(formData.checkOut, 'yyyy-MM-dd') : formData.checkOut,
-          status: formData.status,
-          amount: formData.totalAmount,
-          amountPaid: formData.amountPaid,
-          baseRate: formData.baseRate,
-          commission: formData.commission,
-          tourismFee: formData.tourismFee,
-          vat: formData.vat,
-          netToOwner: formData.netToOwner,
-          pendingAmount: formData.pendingAmount,
-          securityDeposit: formData.securityDeposit,
-          special_requests: formData.notes,
-          adults: formData.adults,
-          children: formData.children,
-          guestDocument: formData.guestDocument ? 'pending-upload' : ''
-        });
-        
+        await createBooking(bookingData);
         toast({
           title: "Booking Created",
           description: `The booking for ${formData.guestName} has been created successfully.`,
         });
       } else {
+        await updateBooking(id!, bookingData);
         toast({
           title: "Booking Updated",
           description: `The booking for ${formData.guestName} has been updated successfully.`,

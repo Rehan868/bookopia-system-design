@@ -1,54 +1,48 @@
+
 export type Room = {
   id: string;
   number: string;
-  name?: string;
   type: string;
-  capacity: number;
-  rate: number;
+  property_name: string;
+  max_occupancy: number;
+  base_rate: number;
   status: 'available' | 'occupied' | 'maintenance';
-  floor: string;
+  property_id?: string;
+  owner_id?: string;
   description: string | null;
   amenities: string[];
-  features: any;
+  image: string | null;
   created_at: string;
   updated_at: string;
-  property?: string;
-  maintenance?: boolean;
-  lastCleaned?: string;
-  nextCheckIn?: string | null;
 };
 
 export type Booking = {
   id: string;
-  room_id: string;
   booking_number: string;
   guest_name: string;
+  guest_email: string;
+  guest_phone: string | null;
   check_in: string;
   check_out: string;
-  amount: number;
-  status: string;
-  payment_status: string;
-  special_requests: string | null;
-  created_at: string;
-  updated_at: string;
-  rooms?: any;
-  commission: number;
-  tourismFee: number;
-  vat: number;
-  netToOwner: number;
-  securityDeposit: number;
-  baseRate: number;
+  room_number: string;
+  property: string;
   adults: number;
   children: number;
-  guestEmail: string;
-  guestPhone: string;
-  guestDocument?: string;
-  notes?: string;
-  amountPaid: number;
-  pendingAmount: number;
-  property_id?: string;
-  guest_id?: string;
-  created_by?: string;
+  amount: number;
+  amount_paid: number | null;
+  base_rate: number;
+  commission: number | null;
+  tourism_fee: number | null;
+  vat: number | null;
+  net_to_owner: number | null;
+  security_deposit: number | null;
+  remaining_amount: number | null;
+  status: string;
+  payment_status: string;
+  guest_document: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type User = {
@@ -56,9 +50,12 @@ export type User = {
   name: string;
   email: string;
   role: string;
-  status: string;
-  avatar_url: string | null;
-  last_active: string | null;
+  password?: string;
+  phone?: string;
+  position?: string;
+  avatar_url?: string | null;
+  notification_preferences?: any;
+  two_factor_enabled?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -68,7 +65,12 @@ export type Owner = {
   name: string;
   email: string;
   phone: string | null;
-  payment_info: any;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  birthdate: string | null;
+  commission_rate: number | null;
+  payment_details: any;
   created_at: string;
   updated_at: string;
 };
@@ -77,32 +79,14 @@ export type Expense = {
   id: string;
   description: string;
   amount: number;
-  date: string;
   category: string;
-  payment_method: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CleaningTask = {
-  id: string;
-  room_id: string;
   date: string;
-  assigned_to: string;
-  status: string;
+  property: string;
+  vendor: string | null;
+  payment_method: string | null;
   notes: string | null;
+  receipt_url: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export type PropertyOwnership = {
-  id: string;
-  room_id: string;
-  owner_id: string;
-  commission_rate: number;
-  contract_start_date: string;
-  contract_end_date: string | null;
-  created_at: string;
-  updated_at: string;
-};
