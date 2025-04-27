@@ -36,6 +36,7 @@ const userFormSchema = z.object({
 const UserEdit = () => {
   const { id } = useParams();
   const { data: user, isLoading, error } = useUser(id || '');
+  const updateUser = useUpdateUser();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +59,7 @@ const UserEdit = () => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar || ''
+        avatar: user.avatar_url || ''
       });
     }
   }, [user, form]);
@@ -67,8 +68,15 @@ const UserEdit = () => {
     try {
       setIsSubmitting(true);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateUser.mutateAsync({
+        id: id!,
+        userData: {
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          avatar_url: values.avatar || null
+        }
+      });
       
       toast({
         title: "User Updated",

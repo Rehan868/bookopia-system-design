@@ -84,10 +84,72 @@ export const fetchOwners = async (): Promise<Owner[]> => {
 export const fetchUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase
     .from('users')
-    .select('*');
+    .select('*')
+    .order('created_at', { ascending: false });
   
   if (error) throw error;
   return data;
+};
+
+export const fetchUserById = async (id: string): Promise<User> => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createUser = async (userData: Partial<User>): Promise<User> => {
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      phone: userData.phone,
+      position: userData.position,
+      avatar_url: userData.avatar_url,
+      notification_preferences: userData.notification_preferences || {},
+      two_factor_enabled: userData.two_factor_enabled || false,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateUser = async (id: string, userData: Partial<User>): Promise<User> => {
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      phone: userData.phone,
+      position: userData.position,
+      avatar_url: userData.avatar_url,
+      notification_preferences: userData.notification_preferences,
+      two_factor_enabled: userData.two_factor_enabled,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteUser = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 };
 
 export const updateBooking = async (id: string, bookingData: Partial<Booking>): Promise<Booking> => {

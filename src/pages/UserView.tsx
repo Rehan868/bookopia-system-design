@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,15 +21,16 @@ const UserView = () => {
   const { data: user, isLoading, error } = useUser(id || '');
   const { data: auditLogs } = useAuditLogs();
   
-  // Filter audit logs for this specific user
-  const userLogs = auditLogs?.filter(log => log.user === id).slice(0, 5) || [];
+  const userLogs = auditLogs?.filter(log => log.user_id === id).slice(0, 5) || [];
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="flex items-center justify-center h-48">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>;
   }
 
   if (error || !user) {
-    return <div>Error loading user details</div>;
+    return <div className="text-center py-8 text-red-500">Error loading user details</div>;
   }
 
   const getInitials = (name: string) => {

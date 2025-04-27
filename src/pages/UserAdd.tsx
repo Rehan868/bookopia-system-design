@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { useCreateUser } from '@/hooks/use-create-user';
 
 type UserFormData = {
   name: string;
@@ -22,6 +23,7 @@ type UserFormData = {
 const UserAdd = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const createUser = useCreateUser();
   const [formData, setFormData] = useState<UserFormData>({
     name: '',
     email: '',
@@ -62,28 +64,40 @@ const UserAdd = () => {
       .toUpperCase();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
-    if (formData.password !== formData.confirmPassword) {
+    try {
+      if (formData.password !== formData.confirmPassword) {
+        toast({
+          title: "Passwords don't match",
+          description: "Please make sure your passwords match.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await createUser.mutateAsync({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        password: formData.password,
+      });
+      
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
+        title: "User Added",
+        description: `${formData.name} has been added successfully.${formData.sendInvite ? ' An invitation email has been sent.' : ''}`,
+      });
+      
+      navigate('/users');
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user. Please try again.",
         variant: "destructive"
       });
-      return;
     }
-    
-    // In a real app, this would send the data to an API
-    console.log('Submitting user:', formData);
-    
-    toast({
-      title: "User Added",
-      description: `${formData.name} has been added successfully.${formData.sendInvite ? ' An invitation email has been sent.' : ''}`,
-    });
-    
-    navigate('/users');
   };
 
   return (
