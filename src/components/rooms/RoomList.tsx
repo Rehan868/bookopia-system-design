@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,21 +43,17 @@ export function RoomList({
 }: RoomListProps) {
   const { data: rooms, isLoading, error } = useRooms();
 
-  // Apply filters to rooms
   const filteredRooms = useMemo(() => {
     if (!rooms) return [];
     
     return rooms.filter(room => {
-      // Apply search filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = 
         !searchQuery || 
         (room.number && room.number.toLowerCase().includes(searchLower)) ||
-        (room.number && room.number.toLowerCase().includes(searchLower)) || // Use number instead of name
-        (room.property && room.property.toLowerCase().includes(searchLower)) ||
+        (room.property_name && room.property_name.toLowerCase().includes(searchLower)) || 
         (room.type && room.type.toLowerCase().includes(searchLower));
       
-      // Apply status filter
       const matchesStatus = filterValue === 'all' || room.status === filterValue;
       
       return matchesSearch && matchesStatus;
@@ -119,11 +114,11 @@ export function RoomList({
                     <div className="font-medium">{room.number}</div>
                     <div className="text-sm text-muted-foreground">{room.number}</div>
                   </td>
-                  <td className="px-6 py-4">{room.property}</td>
+                  <td className="px-6 py-4">{room.property_name}</td>
                   <td className="px-6 py-4">{room.type}</td>
-                  <td className="px-6 py-4">{room.capacity} persons</td>
+                  <td className="px-6 py-4">{room.max_occupancy} persons</td>
                   <td className="px-6 py-4">{getStatusBadge(room.status)}</td>
-                  <td className="px-6 py-4">${room.rate}/night</td>
+                  <td className="px-6 py-4">${room.base_rate}/night</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <Button size="sm" variant="ghost" asChild>
@@ -185,7 +180,7 @@ export function RoomList({
                         </div>
                         <div>
                           <p className="text-xs font-medium text-muted-foreground">PROPERTY</p>
-                          <p className="text-sm">{room.property}</p>
+                          <p className="text-sm">{room.property_name}</p>
                         </div>
                       </div>
                       
@@ -195,7 +190,7 @@ export function RoomList({
                         </div>
                         <div>
                           <p className="text-xs font-medium text-muted-foreground">TYPE</p>
-                          <p className="text-sm">{room.type} • {room.capacity} persons</p>
+                          <p className="text-sm">{room.type} • {room.max_occupancy} persons</p>
                         </div>
                       </div>
                       
@@ -205,7 +200,7 @@ export function RoomList({
                         </div>
                         <div>
                           <p className="text-xs font-medium text-muted-foreground">RATE</p>
-                          <p className="text-sm">${room.rate}/night</p>
+                          <p className="text-sm">${room.base_rate}/night</p>
                         </div>
                       </div>
                     </div>

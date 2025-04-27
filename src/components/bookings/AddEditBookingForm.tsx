@@ -222,7 +222,14 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
           description: `The booking for ${formData.guestName} has been created successfully.`,
         });
       } else {
-        await updateBooking(id!, bookingData);
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookingId = window.location.pathname.split('/').pop();
+        
+        if (!bookingId) {
+          throw new Error('Booking ID not found');
+        }
+        
+        await updateBooking(bookingId, bookingData);
         toast({
           title: "Booking Updated",
           description: `The booking for ${formData.guestName} has been updated successfully.`,

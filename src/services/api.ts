@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Room, Booking, User, Owner, Expense } from './supabase-types';
 
@@ -43,7 +42,15 @@ export const fetchRooms = async (): Promise<Room[]> => {
     .select('*');
   
   if (error) throw error;
-  return data as Room[];
+  
+  // Map the DB fields to our component expected fields
+  return data.map(room => ({
+    ...room,
+    property: room.property_name,
+    rate: room.base_rate,
+    capacity: room.max_occupancy,
+    floor: room.number && room.number.length > 1 ? room.number.slice(0, -2) : '1'
+  }));
 };
 
 export const fetchBookings = async (): Promise<Booking[]> => {
@@ -172,7 +179,21 @@ export const fetchRoomById = async (id: string): Promise<Room> => {
     .single();
   
   if (error) throw error;
-  return data as Room;
+  
+  // Map the DB fields to our component expected fields
+  const room: Room = {
+    ...data,
+    // The rooms table uses property_name but some components expect property
+    property: data.property_name,
+    // Some components use rate instead of base_rate
+    rate: data.base_rate,
+    // Some components use capacity instead of max_occupancy
+    capacity: data.max_occupancy,
+    // Calculate floor from room number
+    floor: data.number && data.number.length > 1 ? data.number.slice(0, -2) : '1'
+  };
+  
+  return room;
 };
 
 export const fetchBookingById = async (id: string): Promise<Booking> => {
@@ -219,11 +240,15 @@ export const updateExpense = async (id: string, expenseData: Partial<Expense>): 
   return data;
 };
 
-// Add functions to handle settings
-export const updateSystemSetting = async (key: string, value: any) => {
+export const updateSystemSetting = async (key: string, value: any): Promise<void> => {
   const { error } = await supabase
     .from('system_settings')
-    .upsert({ key, value })
+    .upsert({ 
+      key, 
+      value: String(value), // Convert to string since the schema expects text
+      category: 'general',
+      type: typeof value
+    })
     .select();
 
   if (error) throw error;
@@ -238,7 +263,6 @@ export const getSystemSettings = async () => {
   return data;
 };
 
-// Add the missing functions that are causing the error
 export const fetchTodayCheckins = async (): Promise<Booking[]> => {
   const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
   
@@ -263,7 +287,6 @@ export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
   return data;
 };
 
-// Add function for cleaning tasks
 export const fetchCleaningTasks = async () => {
   // Since we don't have a cleaning_tasks table in the schema, we'll derive this from bookings
   // Rooms that had checkouts today need cleaning

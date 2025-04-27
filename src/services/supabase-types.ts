@@ -14,6 +14,11 @@ export type Room = {
   image: string | null;
   created_at: string;
   updated_at: string;
+  // Add missing fields needed by components
+  property?: string;
+  capacity?: number;
+  rate?: number;
+  floor?: string;
 };
 
 export type Booking = {

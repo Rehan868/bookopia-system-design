@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,6 +63,10 @@ export function RoomDetails({ roomId }: RoomDetailsProps) {
     );
   }
 
+  const floorNumber = room.floor || 
+    (room.number && room.number.length > 1 ? 
+      room.number.slice(0, -2) : '1');
+
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -78,7 +81,7 @@ export function RoomDetails({ roomId }: RoomDetailsProps) {
               <h1 className="text-3xl font-bold">Room {room.number}</h1>
               {getStatusBadge(room.status)}
             </div>
-            <p className="text-muted-foreground mt-1">{room.type} • Floor {room.floor}</p>
+            <p className="text-muted-foreground mt-1">{room.type} • Floor {floorNumber}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -127,15 +130,15 @@ export function RoomDetails({ roomId }: RoomDetailsProps) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Base Price</p>
-                    <p className="font-medium">${room.rate} / night</p>
+                    <p className="font-medium">${room.base_rate} / night</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Max Occupancy</p>
-                    <p className="font-medium">{room.capacity} Guests</p>
+                    <p className="font-medium">{room.max_occupancy} Guests</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Floor</p>
-                    <p className="font-medium">{room.floor}</p>
+                    <p className="font-medium">{floorNumber}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Last Updated</p>
