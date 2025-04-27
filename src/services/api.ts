@@ -1,8 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Room, 
-  Booking, 
+  Booking,
   User, 
   Owner, 
   Expense, 
@@ -29,23 +28,24 @@ function enhanceBooking(booking: any): Booking {
     guestDocument: booking.guestDocument || '',
     payment_status: booking.payment_status || 'pending',
     amountPaid: booking.amountPaid !== undefined ? booking.amountPaid : 0,
-    pendingAmount: booking.pendingAmount !== undefined ? booking.pendingAmount : amount
+    pendingAmount: booking.pendingAmount !== undefined ? booking.pendingAmount : amount,
+    rooms: booking.rooms || { number: '', property: '' }
   } as Booking;
 }
 
 // Function to create a new booking in the database
 export const createBooking = async (bookingData: Partial<Booking>): Promise<Booking> => {
-  // Format dates for the database
+  // Format data for database insert
   const formattedData = {
-    ...bookingData,
-    check_in: bookingData.check_in instanceof Date ? bookingData.check_in.toISOString() : bookingData.check_in,
-    check_out: bookingData.check_out instanceof Date ? bookingData.check_out.toISOString() : bookingData.check_out,
+    check_in: bookingData.check_in,
+    check_out: bookingData.check_out,
     booking_number: bookingData.booking_number,
     guest_name: bookingData.guest_name,
     guest_email: bookingData.guestEmail,
     guest_phone: bookingData.guestPhone,
-    room_number: bookingData.room_number,
-    special_requests: bookingData.special_requests || bookingData.notes,
+    room_number: bookingData.rooms?.number,
+    property: bookingData.rooms?.property,
+    special_requests: bookingData.special_requests,
     amount: bookingData.amount,
     amount_paid: bookingData.amountPaid,
     base_rate: bookingData.baseRate,
@@ -55,18 +55,16 @@ export const createBooking = async (bookingData: Partial<Booking>): Promise<Book
     tourism_fee: bookingData.tourismFee,
     vat: bookingData.vat,
     net_to_owner: bookingData.netToOwner,
-    notes: bookingData.notes
+    notes: bookingData.special_requests,
+    status: bookingData.status || 'pending',
+    payment_status: bookingData.payment_status || 'pending',
+    adults: bookingData.adults || 1,
+    children: bookingData.children || 0
   };
-
-  // Remove properties not in the database schema to prevent insert errors
-  const {
-    notes, guestEmail, guestPhone, pendingAmount, tourismFee, netToOwner, amountPaid, securityDeposit,
-    baseRate, ...rest
-  } = formattedData as any;
 
   const { data, error } = await supabase
     .from('bookings')
-    .insert(rest)
+    .insert(formattedData)
     .select()
     .single();
   
@@ -91,12 +89,11 @@ export const fetchRooms = async (): Promise<Room[]> => {
   return (data || []).map(room => ({
     ...room,
     status: room.status as 'available' | 'occupied' | 'maintenance',
-    // Add missing properties required by Room type
     capacity: room.max_occupancy,
     rate: room.base_rate,
-    floor: room.property_name, // Using property_name as a fallback for floor
-    features: room.amenities || {},
-  }) as Room);
+    floor: room.property_name,
+    features: room.amenities || {}
+  } as Room));
 };
 
 export const fetchRoomById = async (id: string): Promise<Room> => {
@@ -114,11 +111,10 @@ export const fetchRoomById = async (id: string): Promise<Room> => {
   return {
     ...data,
     status: data.status as 'available' | 'occupied' | 'maintenance',
-    // Add missing properties required by Room type
     capacity: data.max_occupancy,
     rate: data.base_rate,
-    floor: data.property_name, // Using property_name as a fallback for floor
-    features: data.amenities || {},
+    floor: data.property_name,
+    features: data.amenities || {}
   } as Room;
 };
 
@@ -355,4 +351,114 @@ export const updateCleaningTaskStatus = async (id: string, status: string): Prom
     throw error;
   }
   */
+};
+
+export const updateBooking = async (id: string, bookingData: Partial<Booking>): Promise<Booking> => {
+  const formattedData = {
+    check_in: bookingData.check_in,
+    check_out: bookingData.check_out,
+    guest_name: bookingData.guest_name,
+    guest_email: bookingData.guestEmail,
+    guest_phone: bookingData.guestPhone,
+    room_number: bookingData.rooms?.number,
+    property: bookingData.rooms?.property,
+    special_requests: bookingData.special_requests,
+    amount: bookingData.amount,
+    amount_paid: bookingData.amountPaid,
+    base_rate: bookingData.baseRate,
+    remaining_amount: bookingData.pendingAmount,
+    security_deposit: bookingData.securityDeposit,
+    commission: bookingData.commission,
+    tourism_fee: bookingData.tourismFee,
+    vat: bookingData.vat,
+    net_to_owner: bookingData.netToOwner,
+    notes: bookingData.special_requests,
+    status: bookingData.status,
+    payment_status: bookingData.payment_status,
+    adults: bookingData.adults,
+    children: bookingData.children
+  };
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .update(formattedData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(`Error updating booking with ID ${id}:`, error);
+    throw error;
+  }
+
+  return enhanceBooking(data);
+};
+
+export const createRoom = async (roomData: Partial<Room>): Promise<Room> => {
+  const formattedData = {
+    number: roomData.number,
+    name: roomData.number,
+    type: roomData.type,
+    property_name: roomData.floor,
+    max_occupancy: roomData.capacity,
+    base_rate: roomData.rate,
+    status: roomData.status || 'available',
+    description: roomData.description,
+    amenities: roomData.features ? Object.keys(roomData.features) : []
+  };
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .insert(formattedData)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating room:', error);
+    throw error;
+  }
+
+  return {
+    ...data,
+    status: data.status as 'available' | 'occupied' | 'maintenance',
+    capacity: data.max_occupancy,
+    rate: data.base_rate,
+    floor: data.property_name,
+    features: data.amenities || {}
+  } as Room;
+};
+
+export const updateRoom = async (id: string, roomData: Partial<Room>): Promise<Room> => {
+  const formattedData = {
+    number: roomData.number,
+    name: roomData.number,
+    type: roomData.type,
+    property_name: roomData.floor,
+    max_occupancy: roomData.capacity,
+    base_rate: roomData.rate,
+    status: roomData.status,
+    description: roomData.description,
+    amenities: roomData.features ? Object.keys(roomData.features) : undefined
+  };
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .update(formattedData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(`Error updating room with ID ${id}:`, error);
+    throw error;
+  }
+
+  return {
+    ...data,
+    status: data.status as 'available' | 'occupied' | 'maintenance',
+    capacity: data.max_occupancy,
+    rate: data.base_rate,
+    floor: data.property_name,
+    features: data.amenities || {}
+  } as Room;
 };
