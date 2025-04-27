@@ -56,32 +56,29 @@ export function TodayCheckouts() {
 
     return (
       <div className="divide-y">
-        {checkouts.map((checkout) => {
-          const roomInfo = checkout.rooms as any;
-          return (
-            <div key={checkout.id} className="flex items-center justify-between p-3">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
-                  <User className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{checkout.guest_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {roomInfo?.property || 'Unknown'} - Room {roomInfo?.number || 'Unknown'}
-                  </p>
-                </div>
+        {checkouts.map((checkout) => (
+          <div key={checkout.id} className="flex items-center justify-between p-3">
+            <div className="flex items-center">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
+                <User className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <Badge variant="outline" className="mb-1 text-xs bg-green-50 text-green-800 border-green-200">
-                  {format(new Date(checkout.check_out), 'HH:mm')}
-                </Badge>
-                <Link to={`/bookings/${checkout.id}`}>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs">Check-out</Button>
-                </Link>
+              <div>
+                <p className="font-medium text-sm">{checkout.guest_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {checkout.property || 'Unknown'} - Room {checkout.room_number || 'Unknown'}
+                </p>
               </div>
             </div>
-          );
-        })}
+            <div className="text-right">
+              <Badge variant="outline" className="mb-1 text-xs bg-green-50 text-green-800 border-green-200">
+                {format(new Date(checkout.check_out), 'HH:mm')}
+              </Badge>
+              <Link to={`/bookings/${checkout.id}`}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs">Check-out</Button>
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };

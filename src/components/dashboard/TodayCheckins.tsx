@@ -56,32 +56,29 @@ export function TodayCheckins() {
 
     return (
       <div className="divide-y">
-        {checkins.map((checkin) => {
-          const roomInfo = checkin.rooms as any;
-          return (
-            <div key={checkin.id} className="flex items-center justify-between p-3">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
-                  <User className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{checkin.guest_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {roomInfo?.property || 'Unknown'} - Room {roomInfo?.number || 'Unknown'}
-                  </p>
-                </div>
+        {checkins.map((checkin) => (
+          <div key={checkin.id} className="flex items-center justify-between p-3">
+            <div className="flex items-center">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
+                <User className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <Badge variant="outline" className="mb-1 text-xs bg-blue-50 text-blue-800 border-blue-200">
-                  {format(new Date(checkin.check_in), 'HH:mm')}
-                </Badge>
-                <Link to={`/bookings/${checkin.id}`}>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs">Check-in</Button>
-                </Link>
+              <div>
+                <p className="font-medium text-sm">{checkin.guest_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {checkin.property || 'Unknown'} - Room {checkin.room_number || 'Unknown'}
+                </p>
               </div>
             </div>
-          );
-        })}
+            <div className="text-right">
+              <Badge variant="outline" className="mb-1 text-xs bg-blue-50 text-blue-800 border-blue-200">
+                {format(new Date(checkin.check_in), 'HH:mm')}
+              </Badge>
+              <Link to={`/bookings/${checkin.id}`}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs">Check-in</Button>
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };

@@ -6,7 +6,7 @@ export type Room = {
   property_name: string;
   max_occupancy: number;
   base_rate: number;
-  status: 'available' | 'occupied' | 'maintenance';
+  status: 'available' | 'occupied' | 'maintenance' | string;
   property_id?: string;
   owner_id?: string;
   description: string | null;
@@ -89,4 +89,3 @@ export type Expense = {
   created_at: string;
   updated_at: string;
 };
-

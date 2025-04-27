@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -70,8 +71,8 @@ export function BookingList({
         !searchQuery || 
         booking.guest_name.toLowerCase().includes(searchLower) ||
         booking.booking_number.toLowerCase().includes(searchLower) ||
-        (booking.rooms as any)?.number?.toLowerCase().includes(searchLower) ||
-        (booking.rooms as any)?.property?.toLowerCase().includes(searchLower);
+        booking.room_number?.toLowerCase().includes(searchLower) ||
+        booking.property?.toLowerCase().includes(searchLower);
       
       const matchesStatus = filterValue === 'all' || booking.status === filterValue;
       
@@ -143,8 +144,7 @@ export function BookingList({
             </thead>
             <tbody className="divide-y divide-border">
               {filteredBookings.map((booking) => {
-                const room = booking.rooms as any;
-                const remainingAmount = booking.amount - (booking.amountPaid || 0);
+                const remainingAmount = booking.amount - (booking.amount_paid || 0);
                 return (
                   <tr key={booking.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4">
@@ -152,15 +152,15 @@ export function BookingList({
                       <div className="text-sm text-muted-foreground">{booking.booking_number}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {room?.number || 'Unknown'}, {room?.property || 'Unknown'}
+                      {booking.room_number || 'Unknown'}, {booking.property || 'Unknown'}
                     </td>
                     <td className="px-6 py-4">{formatDate(booking.check_in)}</td>
                     <td className="px-6 py-4">{formatDate(booking.check_out)}</td>
                     <td className="px-6 py-4">{getStatusBadge(booking.status)}</td>
                     <td className="px-6 py-4">${booking.amount}</td>
-                    <td className="px-6 py-4">${booking.amountPaid || 0}</td>
+                    <td className="px-6 py-4">${booking.amount_paid || 0}</td>
                     <td className="px-6 py-4 text-muted-foreground">${remainingAmount}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{booking.created_by || 'System'}</td>
+                    <td className="px-6 py-4 text-muted-foreground">System</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <Button size="sm" variant="ghost" asChild>
@@ -222,8 +222,7 @@ export function BookingList({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBookings.map((booking) => {
-            const room = booking.rooms as any;
-            const remainingAmount = booking.amount - (booking.amountPaid || 0);
+            const remainingAmount = booking.amount - (booking.amount_paid || 0);
             return (
               <Card key={booking.id} className="overflow-hidden hover:shadow-md transition-shadow">
                 <div className="p-6">
@@ -248,7 +247,7 @@ export function BookingList({
                         </div>
                         <div>
                           <p className="text-xs font-medium text-muted-foreground">ROOM</p>
-                          <p className="text-sm">{room?.number || 'Unknown'}, {room?.property || 'Unknown'}</p>
+                          <p className="text-sm">{booking.room_number || 'Unknown'}, {booking.property || 'Unknown'}</p>
                         </div>
                       </div>
                       
@@ -269,7 +268,7 @@ export function BookingList({
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Amount Paid:</span>
-                          <span className="font-medium">${booking.amountPaid || 0}</span>
+                          <span className="font-medium">${booking.amount_paid || 0}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Remaining:</span>
@@ -277,7 +276,7 @@ export function BookingList({
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Created By:</span>
-                          <span className="font-medium">{booking.created_by || 'System'}</span>
+                          <span className="font-medium">System</span>
                         </div>
                       </div>
                     </div>

@@ -1,36 +1,51 @@
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { fetchCleaningTasks, updateCleaningTaskStatus } from '@/services/api';
-import { useToast } from './use-toast';
 
-export const useCleaningTasks = () => {
-  return useQuery({
-    queryKey: ['cleaning-tasks'],
-    queryFn: fetchCleaningTasks
-  });
-};
+export function useCleaningTasks() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
 
-export const useUpdateCleaningTaskStatus = () => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  
-  return useMutation({
-    mutationFn: ({ id, status }: { id: string, status: string }) => {
-      return updateCleaningTaskStatus(id, status);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cleaning-tasks'] });
-      toast({
-        title: 'Cleaning task updated',
-        description: 'The cleaning task status has been updated successfully',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Failed to update cleaning task',
-        description: error.message,
-        variant: 'destructive',
-      });
+  useEffect(() => {
+    const getTasks = async () => {
+      try {
+        setIsLoading(true);
+        const cleaningTasks = await fetchCleaningTasks();
+        setTasks(cleaningTasks);
+      } catch (err) {
+        console.error('Error fetching cleaning tasks:', err);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getTasks();
+  }, []);
+
+  const updateStatus = async (taskId: string, newStatus: string) => {
+    try {
+      const updatedTask = await updateCleaningTaskStatus(taskId, newStatus);
+      
+      // Update the task in the local state
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
+      
+      return updatedTask;
+    } catch (err) {
+      console.error('Error updating cleaning task status:', err);
+      throw err;
     }
-  });
-};
+  };
+
+  return { 
+    tasks, 
+    isLoading, 
+    error,
+    updateStatus
+  };
+}

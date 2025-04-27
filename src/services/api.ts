@@ -43,7 +43,7 @@ export const fetchRooms = async (): Promise<Room[]> => {
     .select('*');
   
   if (error) throw error;
-  return data;
+  return data as Room[];
 };
 
 export const fetchBookings = async (): Promise<Booking[]> => {
@@ -137,7 +137,7 @@ export const createRoom = async (roomData: Partial<Room>): Promise<Room> => {
     .single();
 
   if (error) throw error;
-  return data;
+  return data as Room;
 };
 
 export const updateRoom = async (id: string, roomData: Partial<Room>): Promise<Room> => {
@@ -161,7 +161,7 @@ export const updateRoom = async (id: string, roomData: Partial<Room>): Promise<R
     .single();
 
   if (error) throw error;
-  return data;
+  return data as Room;
 };
 
 export const fetchRoomById = async (id: string): Promise<Room> => {
@@ -172,7 +172,7 @@ export const fetchRoomById = async (id: string): Promise<Room> => {
     .single();
   
   if (error) throw error;
-  return data;
+  return data as Room;
 };
 
 export const fetchBookingById = async (id: string): Promise<Booking> => {
@@ -189,7 +189,17 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
 export const createExpense = async (expenseData: Partial<Expense>): Promise<Expense> => {
   const { data, error } = await supabase
     .from('expenses')
-    .insert(expenseData)
+    .insert({
+      description: expenseData.description!,
+      amount: expenseData.amount!,
+      category: expenseData.category!,
+      date: expenseData.date!,
+      property: expenseData.property!,
+      vendor: expenseData.vendor,
+      payment_method: expenseData.payment_method,
+      notes: expenseData.notes,
+      receipt_url: expenseData.receipt_url
+    })
     .select()
     .single();
 
@@ -228,3 +238,63 @@ export const getSystemSettings = async () => {
   return data;
 };
 
+// Add the missing functions that are causing the error
+export const fetchTodayCheckins = async (): Promise<Booking[]> => {
+  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+  
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('check_in', today);
+  
+  if (error) throw error;
+  return data;
+};
+
+export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
+  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+  
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('check_out', today);
+  
+  if (error) throw error;
+  return data;
+};
+
+// Add function for cleaning tasks
+export const fetchCleaningTasks = async () => {
+  // Since we don't have a cleaning_tasks table in the schema, we'll derive this from bookings
+  // Rooms that had checkouts today need cleaning
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, rooms(*)')
+    .eq('check_out', today);
+  
+  if (error) throw error;
+  
+  // Transform booking data into cleaning tasks
+  return data.map(booking => ({
+    id: booking.id,
+    room_number: booking.room_number,
+    property: booking.property,
+    checkout_date: booking.check_out,
+    status: 'pending',
+    assigned_to: null,
+    priority: 'high',
+    notes: `Room needs cleaning after guest ${booking.guest_name} checkout`
+  }));
+};
+
+export const updateCleaningTaskStatus = async (id: string, status: string) => {
+  // In a real implementation, you would update a cleaning_tasks table
+  // For now, we'll just return a mock success response
+  return {
+    id,
+    status,
+    updated_at: new Date().toISOString()
+  };
+};
