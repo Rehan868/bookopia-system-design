@@ -37,6 +37,7 @@ export default function OwnerLogin() {
       });
       navigate('/owner/dashboard');
     } catch (error) {
+      console.error("Login error:", error);
       toast({
         title: "Error",
         description: "Invalid credentials. Please try again.",

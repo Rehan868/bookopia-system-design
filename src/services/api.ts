@@ -81,6 +81,131 @@ export const fetchOwners = async (): Promise<Owner[]> => {
   return data;
 };
 
+export const fetchOwnerById = async (id: string): Promise<Owner> => {
+  const { data, error } = await supabase
+    .from('owners')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createOwner = async (ownerData: Partial<Owner>, password: string, roomIds: string[]): Promise<Owner> => {
+  // First create the auth user
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: ownerData.email!,
+    password: password,
+    options: {
+      data: {
+        name: ownerData.name,
+        role: 'owner'
+      }
+    }
+  });
+
+  if (authError) throw authError;
+
+  // Then create the owner record
+  const { data, error } = await supabase
+    .from('owners')
+    .insert({
+      name: ownerData.name,
+      email: ownerData.email,
+      phone: ownerData.phone,
+      address: ownerData.address,
+      city: ownerData.city,
+      country: ownerData.country,
+      payment_details: ownerData.payment_details
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  
+  // Assign rooms to owner
+  if (roomIds.length > 0) {
+    const roomUpdates = roomIds.map(roomId => ({
+      id: roomId,
+      owner_id: data.id
+    }));
+    
+    const { error: roomsError } = await supabase
+      .from('rooms')
+      .upsert(roomUpdates);
+    
+    if (roomsError) throw roomsError;
+  }
+  
+  return data;
+};
+
+export const updateOwner = async (id: string, ownerData: Partial<Owner>, roomIds: string[]): Promise<Owner> => {
+  // Update the owner record
+  const { data, error } = await supabase
+    .from('owners')
+    .update({
+      name: ownerData.name,
+      email: ownerData.email,
+      phone: ownerData.phone,
+      address: ownerData.address,
+      city: ownerData.city,
+      country: ownerData.country,
+      payment_details: ownerData.payment_details
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  
+  // First remove all room assignments
+  const { error: resetError } = await supabase
+    .from('rooms')
+    .update({ owner_id: null })
+    .eq('owner_id', id);
+  
+  if (resetError) throw resetError;
+  
+  // Assign new rooms to owner
+  if (roomIds.length > 0) {
+    const roomUpdates = roomIds.map(roomId => ({
+      id: roomId,
+      owner_id: id
+    }));
+    
+    const { error: roomsError } = await supabase
+      .from('rooms')
+      .upsert(roomUpdates);
+    
+    if (roomsError) throw roomsError;
+  }
+  
+  return data;
+};
+
+export const deleteOwner = async (id: string): Promise<void> => {
+  // First, remove room assignments
+  const { error: roomsError } = await supabase
+    .from('rooms')
+    .update({ owner_id: null })
+    .eq('owner_id', id);
+
+  if (roomsError) throw roomsError;
+  
+  // Then delete the owner
+  const { error } = await supabase
+    .from('owners')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  
+  // Note: in a production system, you'd also want to delete the auth user,
+  // but that requires admin privileges and is typically done through a serverless function
+};
+
 export const fetchUsers = async (): Promise<User[]> => {
   const { data, error } = await supabase
     .from('users')
