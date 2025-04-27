@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -200,8 +201,8 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
           guestPhone: formData.guestPhone,
           property: formData.property,
           room_number: formData.roomNumber,
-          check_in: formData.checkIn,
-          check_out: formData.checkOut,
+          check_in: formData.checkIn instanceof Date ? format(formData.checkIn, 'yyyy-MM-dd') : formData.checkIn,
+          check_out: formData.checkOut instanceof Date ? format(formData.checkOut, 'yyyy-MM-dd') : formData.checkOut,
           status: formData.status,
           amount: formData.totalAmount,
           amountPaid: formData.amountPaid,

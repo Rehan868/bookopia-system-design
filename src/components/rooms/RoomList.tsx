@@ -54,7 +54,7 @@ export function RoomList({
       const matchesSearch = 
         !searchQuery || 
         (room.number && room.number.toLowerCase().includes(searchLower)) ||
-        (room.name && room.name.toLowerCase().includes(searchLower)) ||
+        (room.number && room.number.toLowerCase().includes(searchLower)) || // Use number instead of name
         (room.property && room.property.toLowerCase().includes(searchLower)) ||
         (room.type && room.type.toLowerCase().includes(searchLower));
       
@@ -117,7 +117,7 @@ export function RoomList({
                 <tr key={room.id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-medium">{room.number}</div>
-                    <div className="text-sm text-muted-foreground">{room.name}</div>
+                    <div className="text-sm text-muted-foreground">{room.number}</div>
                   </td>
                   <td className="px-6 py-4">{room.property}</td>
                   <td className="px-6 py-4">{room.type}</td>
@@ -172,7 +172,7 @@ export function RoomList({
                   <div className="flex flex-col gap-4">
                     <div className="flex justify-between">
                       <div>
-                        <p className="font-medium">{room.name || `Room ${room.number}`}</p>
+                        <p className="font-medium">{`Room ${room.number}`}</p>
                         <p className="text-sm text-muted-foreground">#{room.number}</p>
                       </div>
                       {getStatusBadge(room.status)}

@@ -1,7 +1,7 @@
-
 export type Room = {
   id: string;
   number: string;
+  name?: string;
   type: string;
   capacity: number;
   rate: number;
@@ -12,10 +12,10 @@ export type Room = {
   features: any;
   created_at: string;
   updated_at: string;
-  property?: string; // Adding property field as it's used in RoomList component
-  maintenance?: boolean; // Adding maintenance field used in other components
-  lastCleaned?: string; // Adding lastCleaned field
-  nextCheckIn?: string | null; // Adding nextCheckIn field
+  property?: string;
+  maintenance?: boolean;
+  lastCleaned?: string;
+  nextCheckIn?: string | null;
 };
 
 export type Booking = {
@@ -31,24 +31,21 @@ export type Booking = {
   special_requests: string | null;
   created_at: string;
   updated_at: string;
-  rooms?: any; // Adding rooms property that comes from join queries
-  // Financial fields
+  rooms?: any;
   commission: number;
   tourismFee: number;
   vat: number;
   netToOwner: number;
   securityDeposit: number;
   baseRate: number;
-  // Guest information
   adults: number;
   children: number;
   guestEmail: string;
   guestPhone: string;
-  guestDocument?: string; // Adding guestDocument field for passport/ID document
+  guestDocument?: string;
   notes?: string;
   amountPaid: number;
   pendingAmount: number;
-  // Other fields from the database
   property_id?: string;
   guest_id?: string;
   created_by?: string;

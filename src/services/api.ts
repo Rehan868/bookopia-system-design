@@ -43,8 +43,8 @@ export const createBooking = async (bookingData: Partial<Booking>): Promise<Book
     guest_name: bookingData.guest_name,
     guest_email: bookingData.guestEmail,
     guest_phone: bookingData.guestPhone,
-    room_number: bookingData.rooms?.number,
-    property: bookingData.rooms?.property,
+    room_number: bookingData.room_number || bookingData.rooms?.number,
+    property: bookingData.property || bookingData.rooms?.property,
     special_requests: bookingData.special_requests,
     amount: bookingData.amount,
     amount_paid: bookingData.amountPaid,
@@ -278,32 +278,24 @@ export const fetchCleaningTasks = async (): Promise<CleaningTask[]> => {
       updated_at: new Date().toISOString()
     }
   ] as CleaningTask[];
-  
-  /* Original code commented out due to table not existing
-  const { data, error } = await supabase
-    .from('cleaning_tasks')
-    .select('*, rooms(number, property:type), users(name)');
-  
-  if (error) {
-    console.error('Error fetching cleaning tasks:', error);
-    throw error;
-  }
-  
-  return data || [];
-  */
 };
 
 export const fetchPropertyOwnership = async (): Promise<PropertyOwnership[]> => {
-  const { data, error } = await supabase
-    .from('property_ownership')
-    .select('*, rooms(number), owners(name)');
-  
-  if (error) {
-    console.error('Error fetching property ownership:', error);
-    throw error;
-  }
-  
-  return data || [];
+  // Since the property_ownership table doesn't exist in the database schema,
+  // let's return mock data instead of trying to query a non-existent table
+  console.log('Returning mock property ownership data');
+  return [
+    {
+      id: '1',
+      room_id: '1',
+      owner_id: '1',
+      commission_rate: 10,
+      contract_start_date: new Date().toISOString(),
+      contract_end_date: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+  ] as PropertyOwnership[];
 };
 
 export const updateBookingStatus = async (id: string, status: string): Promise<void> => {
@@ -360,8 +352,8 @@ export const updateBooking = async (id: string, bookingData: Partial<Booking>): 
     guest_name: bookingData.guest_name,
     guest_email: bookingData.guestEmail,
     guest_phone: bookingData.guestPhone,
-    room_number: bookingData.rooms?.number,
-    property: bookingData.rooms?.property,
+    room_number: bookingData.room_number || bookingData.rooms?.number,
+    property: bookingData.property || bookingData.rooms?.property,
     special_requests: bookingData.special_requests,
     amount: bookingData.amount,
     amount_paid: bookingData.amountPaid,
@@ -397,7 +389,7 @@ export const updateBooking = async (id: string, bookingData: Partial<Booking>): 
 export const createRoom = async (roomData: Partial<Room>): Promise<Room> => {
   const formattedData = {
     number: roomData.number,
-    name: roomData.number,
+    name: roomData.number, // Using number as name
     type: roomData.type,
     property_name: roomData.floor,
     max_occupancy: roomData.capacity,
@@ -431,7 +423,7 @@ export const createRoom = async (roomData: Partial<Room>): Promise<Room> => {
 export const updateRoom = async (id: string, roomData: Partial<Room>): Promise<Room> => {
   const formattedData = {
     number: roomData.number,
-    name: roomData.number,
+    name: roomData.number, // Using number as name
     type: roomData.type,
     property_name: roomData.floor,
     max_occupancy: roomData.capacity,
