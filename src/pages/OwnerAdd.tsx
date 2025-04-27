@@ -44,6 +44,8 @@ type OwnerFormData = {
   notes: string;
   birthdate?: Date;
   citizenship: string;
+  password?: string;
+  confirmPassword?: string;
 };
 
 const OwnerAdd = () => {
@@ -73,6 +75,8 @@ const OwnerAdd = () => {
     },
     notes: '',
     citizenship: '',
+    password: '',
+    confirmPassword: '',
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -252,6 +256,33 @@ const OwnerAdd = () => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         placeholder="+1 (555) 123-4567"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password*</Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={formData.password || ''}
+                        onChange={handleInputChange}
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password*</Label>
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword || ''}
+                        onChange={handleInputChange}
+                        placeholder="Confirm password"
                         required
                       />
                     </div>
