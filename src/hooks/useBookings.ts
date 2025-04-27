@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Booking } from '@/services/supabase-types';
@@ -141,7 +142,7 @@ interface BookingDataFromDB {
   guest_id?: string;
   updated_at?: string;
   payment_status?: string;
-  rooms?: { number: string; property: string };
+  rooms?: { number: string; property: string } | any; // Make more flexible to handle potential errors
   // These are the custom fields that we calculate or set defaults for
   commission?: number;
   tourismFee?: number;
@@ -158,8 +159,18 @@ interface BookingDataFromDB {
 }
 
 // Helper function to properly enhance a booking with calculated fields
-function enhanceBooking(booking: BookingDataFromDB): Booking {
+function enhanceBooking(booking: any): Booking {
   const amount = Number(booking.amount || 0);
+  
+  const roomData = booking.rooms || {};
+  
+  // Create a normalized rooms object if it's not properly formed
+  const normalizedRooms = typeof roomData === 'object' && roomData !== null
+    ? {
+        number: roomData.number || '',
+        property: roomData.property || ''
+      }
+    : { number: '', property: '' };
   
   return {
     ...booking,
@@ -181,7 +192,9 @@ function enhanceBooking(booking: BookingDataFromDB): Booking {
     room_id: booking.room_id || '',
     special_requests: booking.special_requests || null,
     created_at: booking.created_at || new Date().toISOString(),
-    updated_at: booking.updated_at || new Date().toISOString()
+    updated_at: booking.updated_at || new Date().toISOString(),
+    // Normalize the rooms object
+    rooms: normalizedRooms
   } as Booking;
 }
 
@@ -205,8 +218,8 @@ export function useBookings() {
           // Fallback to mock data
           setData(mockBookings as unknown as Booking[]);
         } else if (bookingsData && bookingsData.length > 0) {
-          // Transform the data to match our Booking type using the enhanceBooking function
-          const transformedData = bookingsData.map((booking: BookingDataFromDB) => 
+          // Transform the data to match our Booking type
+          const transformedData = bookingsData.map((booking: any) => 
             enhanceBooking(booking)
           );
           
@@ -266,7 +279,7 @@ export function useBooking(id: string) {
           }
         } else if (bookingData) {
           // Use the enhanceBooking helper to properly format the data
-          const enhancedBooking = enhanceBooking(bookingData as BookingDataFromDB);
+          const enhancedBooking = enhanceBooking(bookingData);
           setData(enhancedBooking);
         } else {
           throw new Error('Booking not found');

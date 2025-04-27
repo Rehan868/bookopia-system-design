@@ -48,7 +48,6 @@ interface AddEditBookingFormProps {
   bookingData?: Partial<BookingFormData>;
 }
 
-// Helper function to ensure values are numbers
 const ensureNumber = (val: any): number => {
   if (typeof val === 'number') return val;
   if (typeof val === 'string') {
@@ -58,7 +57,6 @@ const ensureNumber = (val: any): number => {
   return 0;
 };
 
-// Format a number for display, handling potential non-numeric values
 const formatNumber = (value: any): string => {
   const num = ensureNumber(value);
   return num.toFixed(2);
@@ -92,7 +90,7 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     sendConfirmation: bookingData?.sendConfirmation !== undefined ? bookingData.sendConfirmation : true,
     guestDocument: null,
     amountPaid: bookingData?.amountPaid || 0,
-    pendingAmount: 0, // This will be calculated
+    pendingAmount: 0,
   };
   
   const [formData, setFormData] = useState<BookingFormData>(defaultData);
@@ -101,7 +99,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     to: formData.checkOut,
   });
   
-  // Ensure numeric fields are always numbers when form data changes
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -163,9 +160,9 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
           const nights = Math.round((range.to.getTime() - range.from!.getTime()) / (1000 * 60 * 60 * 24));
           const baseRate = ensureNumber(prev.baseRate);
           const totalAmount = baseRate * nights;
-          const vat = totalAmount * 0.05; // 5% VAT
-          const tourismFee = totalAmount * 0.03; // 3% Tourism Fee
-          const commission = totalAmount * 0.1; // 10% Commission
+          const vat = totalAmount * 0.05;
+          const tourismFee = totalAmount * 0.03;
+          const commission = totalAmount * 0.1;
           const netToOwner = totalAmount - vat - tourismFee - commission;
           
           return {
@@ -196,33 +193,28 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     
     try {
       if (mode === 'add') {
-        // Create a new booking
         await createBooking({
-          // Map form data to match the expected API format
           booking_number: formData.reference,
           guest_name: formData.guestName,
-          guest_email: formData.guestEmail,
-          guest_phone: formData.guestPhone,
+          guestEmail: formData.guestEmail,
+          guestPhone: formData.guestPhone,
           property: formData.property,
           room_number: formData.roomNumber,
-          checkIn: formData.checkIn,
-          checkOut: formData.checkOut,
+          check_in: formData.checkIn,
+          check_out: formData.checkOut,
           status: formData.status,
-          total_amount: formData.totalAmount,
           amount: formData.totalAmount,
-          amount_paid: formData.amountPaid,
-          payment_status: formData.paymentStatus,
-          special_requests: formData.notes,
-          adults: formData.adults,
-          children: formData.children,
+          amountPaid: formData.amountPaid,
           baseRate: formData.baseRate,
           commission: formData.commission,
           tourismFee: formData.tourismFee,
           vat: formData.vat,
           netToOwner: formData.netToOwner,
+          pendingAmount: formData.pendingAmount,
           securityDeposit: formData.securityDeposit,
-          remaining_amount: formData.pendingAmount,
-          // Need to handle file upload separately if needed
+          special_requests: formData.notes,
+          adults: formData.adults,
+          children: formData.children,
           guestDocument: formData.guestDocument ? 'pending-upload' : ''
         });
         
@@ -231,7 +223,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
           description: `The booking for ${formData.guestName} has been created successfully.`,
         });
       } else {
-        // Edit existing booking logic would go here
         toast({
           title: "Booking Updated",
           description: `The booking for ${formData.guestName} has been updated successfully.`,
