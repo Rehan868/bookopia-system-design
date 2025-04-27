@@ -1,4 +1,6 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,73 +8,64 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 222 47% 11%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 222 47% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 221 83% 40%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 210 100% 50%;
     --primary-foreground: 210 40% 98%;
-
+    
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
+    --secondary-foreground: 222 47% 11.2%;
+    
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 226 70% 96%;
-    --accent-foreground: 221 83% 40%;
-
+    
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
+    
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 40%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 221 83% 40%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 221 90% 95%;
-    --sidebar-primary-foreground: 221 83% 40%;
-    --sidebar-accent: 221 80% 35%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 221 75% 45%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --ring: 222.2 84% 4.9%;
+    
+    --radius: 0.75rem;
   }
-
+  
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
+    
+    --card: 222 47% 11%;
     --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
+    
+    --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-
-    --primary: 226 70% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
+    
+    --primary: 210 100% 50%;
+    --primary-foreground: 222 47% 11.2%;
+    
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
+    
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
+    
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
+    
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
+    
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
@@ -80,42 +73,82 @@
   * {
     @apply border-border;
   }
-
+  
   body {
-    @apply bg-background text-foreground font-sans;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
-  }
-
-  h1 {
-    @apply text-3xl md:text-4xl;
-  }
-
-  h2 {
-    @apply text-2xl md:text-3xl;
-  }
-
-  h3 {
-    @apply text-xl md:text-2xl;
+    @apply bg-background text-foreground font-inter antialiased;
   }
 }
 
 @layer components {
-  .bookopia-stat-card {
-    @apply flex flex-col p-6 bg-white rounded-xl shadow-md border border-border transition-all hover:shadow-lg;
+  .page-container {
+    @apply max-w-[1600px] w-full mx-auto p-6;
+  }
+  
+  .card-glass {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
   }
 
-  .bookopia-card {
-    @apply bg-white rounded-xl shadow-sm border border-border p-6 transition-all hover:shadow-md;
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
   }
 
-  .bookopia-chart-card {
-    @apply bg-white rounded-xl shadow-sm border border-border p-6 transition-all hover:shadow-md;
+  .animate-slide-in {
+    animation: slideIn 0.5s ease-out forwards;
   }
+}
 
-  .auth-card {
-    @apply max-w-md w-full mx-auto p-8 bg-white rounded-xl shadow-lg border border-border;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Page Transitions */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 400ms, transform 400ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
 }
