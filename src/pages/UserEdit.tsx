@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
-import { useUser } from '@/hooks/useUsers';
+import { useUser, useUpdateUser } from '@/hooks/useUsers';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Form, 

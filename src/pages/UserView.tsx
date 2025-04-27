@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -72,7 +73,7 @@ const UserView = () => {
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={user.avatar || undefined} />
+                <AvatarImage src={user.avatar_url || undefined} />
                 <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
               </Avatar>
               <div>
@@ -106,7 +107,7 @@ const UserView = () => {
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Last Login</p>
-              <p className="font-medium">{user.lastActive || 'Never'}</p>
+              <p className="font-medium">Never</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Created At</p>
