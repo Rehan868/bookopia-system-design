@@ -1,338 +1,355 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { ArrowLeft } from 'lucide-react';
+import { useOwner } from '@/hooks/useOwners';
+import { useToast } from '@/components/ui/use-toast';
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { fetchOwnerById, updateOwner } from '@/services/api';
-import { Owner } from '@/types/owner';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { OwnerRoomsList } from '@/components/owners/OwnerRoomsList';
 
-interface OwnerFormData extends Omit<Owner, 'id' | 'created_at' | 'updated_at'> {
-  id?: string;
-}
+const ownerFormSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  phone: z.string().optional(),
+  properties: z.coerce.number().min(0, { message: "Properties cannot be negative" }),
+  revenue: z.coerce.number().min(0, { message: "Revenue cannot be negative" }),
+  occupancy: z.coerce.number().min(0, { message: "Occupancy cannot be negative" }).max(100, { message: "Occupancy cannot exceed 100%" }),
+  avatar: z.string().optional(),
+  joinedDate: z.string().optional(),
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  routingNumber: z.string().optional()
+});
 
 const OwnerEdit = () => {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { data: owner, isLoading, error } = useOwner(id || '');
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState<OwnerFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    country: '',
-    birthdate: '',
-    commission_rate: 0,
-    payment_details: {
-      method: '',
-      accountNumber: '',
+  const form = useForm({
+    resolver: zodResolver(ownerFormSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      properties: 0,
+      revenue: 0,
+      occupancy: 0,
+      avatar: '',
+      joinedDate: '',
       bankName: '',
-      routingNumber: '',
+      accountNumber: '',
+      routingNumber: ''
     },
+    mode: "onChange",
   });
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadOwner = async () => {
-      if (!id) {
-        toast({
-          title: 'Error',
-          description: 'Owner ID not provided.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const ownerData = await fetchOwnerById(id);
-        if (ownerData) {
-          setFormData({
-            id: ownerData.id,
-            name: ownerData.name,
-            email: ownerData.email,
-            phone: ownerData.phone || '',
-            address: ownerData.address || '',
-            city: ownerData.city || '',
-            country: ownerData.country || '',
-            birthdate: ownerData.birthdate || '',
-            commission_rate: ownerData.commission_rate || 0,
-            payment_details: ownerData.payment_details || {
-              method: '',
-              accountNumber: '',
-              bankName: '',
-              routingNumber: '',
-            },
-          });
-        } else {
-          toast({
-            title: 'Error',
-            description: 'Owner not found.',
-            variant: 'destructive',
-          });
-        }
-      } catch (error) {
-        console.error('Error loading owner:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load owner. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadOwner();
-  }, [id, toast]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // Update the usage of payment_details instead of paymentDetails
-  const handlePaymentDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      payment_details: {
-        ...prev.payment_details,
-        [name]: value
-      }
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!id) {
-      toast({
-        title: 'Error',
-        description: 'Owner ID not provided.',
-        variant: 'destructive',
+  React.useEffect(() => {
+    if (owner) {
+      form.reset({
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone || '',
+        properties: owner.properties,
+        revenue: owner.revenue,
+        occupancy: owner.occupancy,
+        avatar: owner.avatar || '',
+        joinedDate: owner.joinedDate || '',
+        bankName: owner.paymentDetails?.bank || '',
+        accountNumber: owner.paymentDetails?.accountNumber || '',
+        routingNumber: owner.paymentDetails?.routingNumber || ''
       });
-      return;
     }
+  }, [owner, form]);
 
+  const onSubmit = async (values: z.infer<typeof ownerFormSchema>) => {
     try {
-      setIsLoading(true);
-      // Ensure commission_rate is not null
-      const commissionRate = formData.commission_rate !== null ? formData.commission_rate : 0;
-      await updateOwner(id, { ...formData, commission_rate: commissionRate });
+      setIsSubmitting(true);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       toast({
-        title: 'Success',
-        description: 'Owner updated successfully.',
+        title: "Owner Updated",
+        description: "Owner has been updated successfully.",
       });
-      navigate('/owners');
+      
+      navigate(`/owners/${id}`);
     } catch (error) {
-      console.error('Error updating owner:', error);
+      console.error("Error updating owner:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to update owner. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update owner. Please try again.",
+        variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading owner details...</span>
+      <div className="animate-fade-in">
+        <div className="flex items-center gap-4 mb-8">
+          <Button variant="ghost" asChild>
+            <Link to="/owners">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Owners
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Edit Owner</h1>
+            <p className="text-muted-foreground mt-1">Loading owner information...</p>
+          </div>
+        </div>
+
+        <Card className="p-6">
+          <div className="space-y-6">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !owner) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+        <h2 className="text-2xl font-bold text-destructive">Error Loading Owner</h2>
+        <p className="text-muted-foreground">
+          {error instanceof Error ? error.message : "Owner information could not be loaded"}
+        </p>
+        <Button asChild>
+          <Link to="/owners">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Owners List
+          </Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="p-6 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Edit Owner</h1>
-        <p className="text-muted-foreground mt-1">Update owner details</p>
+    <div className="animate-fade-in">
+      <div className="flex items-center gap-4 mb-8">
+        <Button variant="ghost" asChild>
+          <Link to="/owners">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Owners
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Edit Owner</h1>
+          <p className="text-muted-foreground mt-1">Modify owner information</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update basic owner information</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter owner's name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter owner's email"
-                />
-              </div>
-            </div>
+      <Card className="p-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Enter email address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter phone number (optional)" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  value={formData.phone || ''}
-                  onChange={handleInputChange}
-                  placeholder="Enter owner's phone"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="birthdate">Birthdate</Label>
-                <Input
-                  id="birthdate"
-                  name="birthdate"
-                  type="date"
-                  value={formData.birthdate || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                name="address"
-                value={formData.address || ''}
-                onChange={handleInputChange}
-                placeholder="Enter owner's address"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FormField
+                control={form.control}
+                name="properties"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Properties</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="revenue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Revenue (YTD)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="occupancy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Average Occupancy (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
+            
+            <FormField
+              control={form.control}
+              name="avatar"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Avatar URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter avatar URL (optional)" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  name="city"
-                  value={formData.city || ''}
-                  onChange={handleInputChange}
-                  placeholder="Enter owner's city"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  name="country"
-                  value={formData.country || ''}
-                  onChange={handleInputChange}
-                  placeholder="Enter owner's country"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Information</CardTitle>
-            <CardDescription>Update financial details</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="commission_rate">Commission Rate</Label>
-              <Input
-                id="commission_rate"
-                name="commission_rate"
-                type="number"
-                value={formData.commission_rate?.toString() || ''}
-                onChange={handleInputChange}
-                placeholder="Enter commission rate"
+            <FormField
+              control={form.control}
+              name="joinedDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Joined Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FormField
+                control={form.control}
+                name="bankName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bank Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter bank name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment Details</CardTitle>
-            <CardDescription>Update payment information</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="payment_method">Payment Method</Label>
-              <Input
-                id="payment_method"
-                name="method"
-                value={formData.payment_details?.method || ''}
-                onChange={handlePaymentDetailsChange}
-                placeholder="Enter payment method"
+              
+              <FormField
+                control={form.control}
+                name="accountNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter account number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="accountNumber">Account Number</Label>
-                <Input
-                  id="accountNumber"
-                  name="accountNumber"
-                  value={formData.payment_details?.accountNumber || ''}
-                  onChange={handlePaymentDetailsChange}
-                  placeholder="Enter account number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bankName">Bank Name</Label>
-                <Input
-                  id="bankName"
-                  name="bankName"
-                  value={formData.payment_details?.bankName || ''}
-                  onChange={handlePaymentDetailsChange}
-                  placeholder="Enter bank name"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="routingNumber">Routing Number</Label>
-              <Input
-                id="routingNumber"
+              
+              <FormField
+                control={form.control}
                 name="routingNumber"
-                value={formData.payment_details?.routingNumber || ''}
-                onChange={handlePaymentDetailsChange}
-                placeholder="Enter routing number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Routing Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter routing number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" type="button" onClick={() => navigate(`/owners/${id}`)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </Card>
 
-        <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={() => navigate('/owners')}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            Update Owner
-          </Button>
-        </div>
-      </form>
+      <OwnerRoomsList ownerId={id || ''} isEditing={true} />
     </div>
   );
 };

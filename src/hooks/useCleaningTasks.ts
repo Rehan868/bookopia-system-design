@@ -1,43 +1,17 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-
-interface CleaningTask {
-  id: string;
-  room_number: string;
-  property: string;
-  status: string;
-  assigned_to?: string;
-  date?: string;
-}
+import { fetchCleaningTasks, updateCleaningTaskStatus } from '@/services/api';
 
 export function useCleaningTasks() {
-  const [tasks, setTasks] = useState<CleaningTask[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<any>(null);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const getTasks = async () => {
       try {
         setIsLoading(true);
-        
-        // Fetch rooms from supabase
-        const { data, error } = await supabase
-          .from('rooms')
-          .select('id, number, property_name, status');
-        
-        if (error) throw error;
-        
-        // Map the data to our tasks format
-        const cleaningTasks = data.map(room => ({
-          id: room.id,
-          room_number: room.number,
-          property: room.property_name,
-          status: room.status,
-          assigned_to: 'Staff Member', // This would come from a join table in a real implementation
-          date: new Date().toISOString().split('T')[0] // Today's date
-        }));
-        
+        const cleaningTasks = await fetchCleaningTasks();
         setTasks(cleaningTasks);
       } catch (err) {
         console.error('Error fetching cleaning tasks:', err);
@@ -47,44 +21,21 @@ export function useCleaningTasks() {
       }
     };
 
-    fetchTasks();
+    getTasks();
   }, []);
 
   const updateStatus = async (taskId: string, newStatus: string) => {
     try {
-      // Map cleaning status to room status
-      let roomStatus = newStatus;
-      if (newStatus === 'completed') roomStatus = 'available';
-      else if (newStatus === 'in_progress') roomStatus = 'occupied';
-      else if (newStatus === 'scheduled') roomStatus = 'booked';
-      else if (newStatus === 'delayed') roomStatus = 'maintenance';
-      
-      // Update the room status in Supabase
-      const { data: updatedRoom, error } = await supabase
-        .from('rooms')
-        .update({ status: roomStatus })
-        .eq('id', taskId)
-        .select()
-        .single();
-      
-      if (error) throw error;
+      const updatedTask = await updateCleaningTaskStatus(taskId, newStatus);
       
       // Update the task in the local state
       setTasks(prevTasks => 
         prevTasks.map(task => 
-          task.id === taskId ? { 
-            ...task, 
-            status: newStatus 
-          } : task
+          task.id === taskId ? { ...task, status: newStatus } : task
         )
       );
       
-      return {
-        id: updatedRoom.id,
-        room_number: updatedRoom.number,
-        property: updatedRoom.property_name,
-        status: updatedRoom.status
-      };
+      return updatedTask;
     } catch (err) {
       console.error('Error updating cleaning task status:', err);
       throw err;

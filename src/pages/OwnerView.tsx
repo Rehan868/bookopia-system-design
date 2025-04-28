@@ -177,7 +177,7 @@ const OwnerView = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Payment Details</p>
-              <div className="text-gray-700">{owner.payment_details?.method || 'Not specified'}</div>
+              <p className="font-medium">{owner.paymentDetails?.bank || 'Not provided'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Joined Date</p>

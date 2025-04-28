@@ -1,14 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Room as SupabaseRoom, Booking, User, Owner as SupabaseOwner, Expense } from './supabase-types';
-
-interface ApiRoom {
-  id: string;
-  number: string;
-  property: string;
-  type: string;
-  status: 'available' | 'occupied' | 'maintenance';
-  bookings: RoomBooking[];
-}
+import { Room, Booking, User, Owner, Expense } from './supabase-types';
 
 interface RoomBooking {
   id: string;
@@ -16,6 +7,15 @@ interface RoomBooking {
   startDate: Date;
   endDate: Date;
   status: 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
+}
+
+interface Room {
+  id: string;
+  number: string;
+  property: string;
+  type: string;
+  status: 'available' | 'occupied' | 'maintenance';
+  bookings: RoomBooking[];
 }
 
 // Mock data
@@ -530,11 +530,12 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
       .single();
     
     if (error) throw error;
-    return data as Booking;
+    return data;
   } catch (error) {
     console.error(`Error fetching booking with ID ${id}:`, error);
     
     // If there's an error with the database, generate mock data as a fallback
+    // This is just for development and should be removed in production
     const mockBooking: Booking = {
       id: id,
       booking_number: `BK${Math.floor(Math.random() * 10000)}`,
@@ -558,10 +559,9 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
       remaining_amount: Math.floor(Math.random() * 200),
       status: ['confirmed', 'pending', 'checked-in', 'completed'][Math.floor(Math.random() * 4)],
       payment_status: ['paid', 'partially_paid', 'pending'][Math.floor(Math.random() * 3)],
-      guest_document: null,
-      notes: `Mock booking details for ID ${id}`,
       created_at: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString(),
       updated_at: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
+      notes: `Mock booking details for ID ${id}`
     };
     
     return mockBooking;
@@ -946,32 +946,36 @@ export const fetchRoomTypes = async (): Promise<any[]> => {
 
 export const fetchCleaningStatuses = async () => {
   try {
-    // Query the room_cleaning_status table
-    const { data: cleaningStatuses, error: statusError } = await supabase
-      .from('room_cleaning_status')
+    // Query the rooms table and join with properties to get the property name
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
       .select(`
         id,
-        room_id,
-        room_number,
-        property,
+        number,
+        name,
+        property_id,
+        properties(name),
         status,
-        last_cleaned,
-        next_check_in,
-        created_at,
         updated_at
-      `);
+      `)
+      .not('property_id', 'is', null);
 
-    if (statusError) throw statusError;
+    if (roomsError) {
+      console.error('Error fetching rooms for cleaning status:', roomsError);
+      throw roomsError;
+    }
 
     // Format to match the expected structure in the component
-    return cleaningStatuses.map(item => ({
-      id: item.id,
-      roomId: item.room_id,
-      roomNumber: item.room_number,
-      property: item.property,
-      status: item.status as 'Clean' | 'Dirty' | 'In Progress',
-      lastCleaned: item.last_cleaned,
-      nextCheckIn: item.next_check_in
+    return rooms.map(room => ({
+      id: room.id,
+      roomId: room.id,
+      roomNumber: room.number,
+      property: room.properties?.name || 'Main Property', // Use property name instead of ID
+      status: mapRoomStatusToCleaningStatus(room.status),
+      // Use updated_at as lastCleaned if status is 'available'
+      lastCleaned: room.status === 'available' ? room.updated_at : null,
+      // We don't have next_check_in in rooms table, but we can populate it from bookings later if needed
+      nextCheckIn: null
     }));
   } catch (error) {
     console.error('Error fetching cleaning statuses:', error);
@@ -981,24 +985,67 @@ export const fetchCleaningStatuses = async () => {
 
 export const updateCleaningStatus = async (id: string, status: string) => {
   try {
-    // Update the status in the room_cleaning_status table
+    // Map cleaning status to room status
+    const roomStatus = mapCleaningStatusToRoomStatus(status);
+    
+    // Update the status in the rooms table
     const { data, error } = await supabase
-      .from('room_cleaning_status')
+      .from('rooms')
       .update({ 
-        status,
-        // If status is Clean, update last_cleaned to now
-        ...(status === 'Clean' ? { last_cleaned: new Date().toISOString() } : {})
+        status: roomStatus,
+        updated_at: new Date().toISOString() 
       })
       .eq('id', id)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating room status:', error);
+      throw error;
+    }
     
-    // Return the updated record
-    return data[0];
+    // Return the updated record in the format expected by the component
+    return {
+      id: data[0].id,
+      roomId: data[0].id,
+      roomNumber: data[0].number,
+      property: data[0].property || 'Main Property',
+      status: status,
+      lastCleaned: status === 'Clean' ? new Date().toISOString() : null,
+      nextCheckIn: null
+    };
   } catch (error) {
     console.error('Error updating cleaning status:', error);
     throw error;
+  }
+};
+
+// Helper function to map room status to cleaning status
+const mapRoomStatusToCleaningStatus = (roomStatus) => {
+  switch (roomStatus) {
+    case 'available':
+      return 'Clean';
+    case 'occupied':
+      return 'Dirty';
+    case 'cleaning':
+      return 'In Progress';
+    case 'maintenance':
+      return 'Dirty';
+    default:
+      return 'Dirty';
+  }
+};
+
+// Helper function to map cleaning status to room status
+const mapCleaningStatusToRoomStatus = (cleaningStatus) => {
+  switch (cleaningStatus) {
+    case 'Clean':
+      return 'available';
+    case 'Dirty':
+      return 'maintenance';
+    case 'In Progress':
+      return 'cleaning';
+    default:
+      return 'maintenance';
   }
 };
 
