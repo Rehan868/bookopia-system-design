@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useOwnerLogin } from '@/hooks/useOwners';
 
 export default function OwnerLogin() {
   const [email, setEmail] = useState('');
@@ -11,6 +13,7 @@ export default function OwnerLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const ownerLogin = useOwnerLogin();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,24 +30,11 @@ export default function OwnerLogin() {
     setIsLoading(true);
     
     try {
-      // For demo purposes, we'll just accept any credentials
-      // This simulates a successful login without database authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store simple owner information in localStorage
-      const mockOwner = {
-        id: 'demo-owner-1',
-        name: 'Demo Owner',
-        email: email,
-        role: 'owner'
-      };
-      
-      localStorage.setItem('user', JSON.stringify(mockOwner));
-      localStorage.setItem('isAuthenticated', 'true');
+      const { user } = await ownerLogin(email, password);
       
       toast({
         title: "Success!",
-        description: "You have successfully logged in as an owner."
+        description: "Welcome back to your owner portal."
       });
       
       navigate('/owner/dashboard');
