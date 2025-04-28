@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { addDays, addMonths, format, isSameDay, isBefore, isAfter } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,14 +50,14 @@ const RoomAvailability: React.FC<RoomAvailabilityProps> = ({
   };
 
   // Check if a date is booked
-  const isDateBooked = (date) => {
+  const isDateBooked = (date: Date) => {
     if (!roomData?.bookedDates) return false;
     const formattedDate = format(date, 'yyyy-MM-dd');
     return roomData.bookedDates.includes(formattedDate);
   };
 
   // Get booking for a specific date
-  const getBooking = (date) => {
+  const getBooking = (date: Date) => {
     if (!roomData?.bookings) return null;
     
     return roomData.bookings.find(booking => {
