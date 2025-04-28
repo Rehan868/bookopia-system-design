@@ -832,6 +832,20 @@ export const updateBooking = async (id: string, bookingData: Partial<Booking>): 
   }
 };
 
+export const deleteBooking = async (id: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error deleting booking with ID ${id}:`, error);
+    throw error;
+  }
+};
+
 export const fetchRoomById = async (id: string): Promise<Room> => {
   try {
     const { data, error } = await supabase
