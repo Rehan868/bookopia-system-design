@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, addDays, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
+import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarClock, ChevronLeft, ChevronRight, PlusCircle, RefreshCw, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAvailability } from '@/hooks/useAvailability';
-import { useBookings } from '@/hooks/useBookings';
-import { Skeleton } from '@/components/ui/skeleton';
+import { fetchRoomAvailability } from '@/services/api';
 
 interface RoomBooking {
   id: string;
@@ -22,19 +20,16 @@ interface RoomBooking {
   status: 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
 }
 
-type RoomWithBookings = {
+interface Room {
   id: string;
   number: string;
-  type: string;
   property: string;
-  property_name?: string;
-  capacity?: number;
-  rate?: number;
-  status?: string;
-  bookedDates: any[];
-  bookings: any[];
-};
+  type: string;
+  status: 'available' | 'occupied' | 'maintenance';
+  bookings: RoomBooking[];
+}
 
+// Generate array of dates for the calendar view
 const generateDates = (startDate: Date, days: number) => {
   const dates = [];
   for (let i = 0; i < days; i++) {
@@ -45,18 +40,23 @@ const generateDates = (startDate: Date, days: number) => {
   return dates;
 };
 
+// Calculate booking position and width for the calendar view
 const calculateBookingStyle = (booking: RoomBooking, viewStartDate: Date, totalDays: number) => {
-  const startDate = booking.startDate;
-  const endDate = booking.endDate;
+  const startDate = new Date(booking.startDate);
+  const endDate = new Date(booking.endDate);
   
+  // Calculate days from view start to booking start
   const startDiff = Math.max(0, Math.floor((startDate.getTime() - viewStartDate.getTime()) / (24 * 60 * 60 * 1000)));
   
+  // Calculate booking duration in days
   const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
   
+  // Ensure the booking is visible in the current view
   if (startDiff >= totalDays || startDiff + duration <= 0) {
     return null;
   }
   
+  // Adjust start and width if the booking extends outside the view
   const visibleStart = Math.max(0, startDiff);
   const visibleDuration = Math.min(totalDays - visibleStart, duration - Math.max(0, -startDiff));
   
@@ -76,84 +76,40 @@ const Availability = () => {
   const [roomStatus, setRoomStatus] = useState<string | undefined>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [filteredRooms, setFilteredRooms] = useState<RoomWithBookings[]>([]);
-
-  const endDate = new Date(viewStartDate);
-  endDate.setDate(endDate.getDate() + displayDays);
-
-  const { data: availabilityData, isLoading: availabilityLoading } = useAvailability(
-    viewStartDate, 
-    endDate
-  );
-
-  const { data: bookingsData, isLoading: bookingsLoading } = useBookings();
-
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
+  
   const calendarDates = generateDates(viewStartDate, displayDays);
 
+  // Fetch room availability data from Supabase
   useEffect(() => {
-    if (availabilityData && bookingsData) {
-      const processedRooms: RoomWithBookings[] = availabilityData.map(room => {
-        const roomBookings = bookingsData.filter(booking => 
-          booking.room_number === room.number
-        ).map(booking => {
-          return {
+    const fetchData = async () => {
+      try {
+        const startDate = viewStartDate.toISOString().split('T')[0];
+        const endDate = new Date(viewStartDate);
+        endDate.setDate(endDate.getDate() + displayDays);
+        const endDateString = endDate.toISOString().split('T')[0];
+
+        const data = await fetchRoomAvailability(startDate, endDateString);
+        const transformedData = data.map((room: any) => ({
+          ...room,
+          status: room.bookedDates.length > 0 ? 'occupied' : 'available',
+          bookings: room.bookings.map((booking: any) => ({
             id: booking.id,
             guestName: booking.guest_name,
-            startDate: parseISO(booking.check_in),
-            endDate: parseISO(booking.check_out),
-            status: booking.status as 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled'
-          };
-        });
-        
-        const today = new Date();
-        const hasActiveBooking = roomBookings.some(booking => 
-          isSameDay(booking.startDate, today) || 
-          (isAfter(today, booking.startDate) && isBefore(today, booking.endDate))
-        );
-        
-        return {
-          id: room.id,
-          number: room.number,
-          property: room.property || room.property_name || '',
-          type: room.type || '',
-          property_name: room.property_name,
-          capacity: room.capacity,
-          rate: room.rate,
-          status: hasActiveBooking ? 'occupied' : (room.status as 'available' | 'occupied' | 'maintenance') || 'available',
-          bookedDates: room.bookedDates || [],
-          bookings: roomBookings
-        };
-      });
-      
-      let filtered = processedRooms;
-      
-      if (property && property !== "all") {
-        filtered = filtered.filter(room => room.property === property);
+            startDate: new Date(booking.check_in),
+            endDate: new Date(booking.check_out),
+            status: booking.status
+          }))
+        }));
+        setFilteredRooms(transformedData);
+      } catch (error) {
+        console.error('Error fetching room availability:', error);
       }
-      
-      if (roomType && roomType !== "all") {
-        filtered = filtered.filter(room => room.type === roomType);
-      }
-      
-      if (roomStatus && roomStatus !== "all") {
-        filtered = filtered.filter(room => room.status === roomStatus);
-      }
-      
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filtered = filtered.filter(room => 
-          room.number.toLowerCase().includes(query) || 
-          room.property.toLowerCase().includes(query) ||
-          room.bookings.some(booking => 
-            booking.guestName.toLowerCase().includes(query)
-          )
-        );
-      }
-      
-      setFilteredRooms(filtered);
-    }
-  }, [availabilityData, bookingsData, property, roomType, roomStatus, searchQuery]);
+    };
 
+    fetchData();
+  }, [viewStartDate, displayDays]);
+  
   const moveCalendar = (direction: 'prev' | 'next') => {
     const newDate = new Date(viewStartDate);
     if (direction === 'prev') {
@@ -182,7 +138,7 @@ const Availability = () => {
   
   const formatDateHeader = (date: Date) => {
     const day = date.getDate();
-    const isToday = isSameDay(new Date(), date);
+    const isToday = new Date().toDateString() === date.toDateString();
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
     const month = date.toLocaleDateString('en-US', { month: 'short' });
     
@@ -204,6 +160,7 @@ const Availability = () => {
   };
 
   const handleCellClick = (roomId: string, date: Date) => {
+    // In a real app, this would open a booking creation form
     toast({
       title: "Create Booking",
       description: `Room ${filteredRooms.find(r => r.id === roomId)?.number} selected for ${format(date, 'MMMM d, yyyy')}`,
@@ -211,28 +168,12 @@ const Availability = () => {
   };
   
   const handleBookingClick = (bookingId: string) => {
+    // In a real app, this would navigate to booking details
+    toast({
+      title: "Booking Details",
+      description: `Viewing details for booking #${bookingId}`,
+    });
   };
-
-  if (availabilityLoading || bookingsLoading) {
-    return (
-      <div className="animate-fade-in">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Availability Calendar</h1>
-            <p className="text-muted-foreground mt-1">View and manage room availability</p>
-          </div>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Loading availability data...</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-[600px] w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="animate-fade-in">
@@ -332,9 +273,8 @@ const Availability = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Properties</SelectItem>
-                {availabilityData && [...new Set(availabilityData.map(room => room.property || room.property_name))].map(property => (
-                  <SelectItem key={property} value={property}>{property}</SelectItem>
-                ))}
+                <SelectItem value="Marina Tower">Marina Tower</SelectItem>
+                <SelectItem value="Downtown Heights">Downtown Heights</SelectItem>
               </SelectContent>
             </Select>
 
@@ -344,9 +284,10 @@ const Availability = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {availabilityData && [...new Set(availabilityData.map(room => room.type))].map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
+                <SelectItem value="Standard Room">Standard Room</SelectItem>
+                <SelectItem value="Deluxe Suite">Deluxe Suite</SelectItem>
+                <SelectItem value="Executive Suite">Executive Suite</SelectItem>
+                <SelectItem value="Penthouse Suite">Penthouse Suite</SelectItem>
               </SelectContent>
             </Select>
 
@@ -371,7 +312,7 @@ const Availability = () => {
               }}>
                 <div className="grid grid-cols-[200px_1fr] border-b border-border">
                   <div className="p-3 font-medium text-sm bg-muted border-r border-border sticky left-0 z-10">Room</div>
-                  <div className="grid bg-muted" style={{ gridTemplateColumns: `repeat(${displayDays}, 1fr)` }}>
+                  <div className={`grid grid-cols-${displayDays} bg-muted`} style={{ gridTemplateColumns: `repeat(${displayDays}, 1fr)` }}>
                     {calendarDates.map((date, i) => (
                       <div key={i} className="p-2 text-center border-r border-border last:border-r-0">
                         {formatDateHeader(date)}
@@ -416,16 +357,18 @@ const Availability = () => {
                         </span>
                       </div>
                       <div className="relative h-[80px]">
+                        {/* Grid cells for days */}
                         <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${displayDays}, 1fr)` }}>
                           {Array.from({ length: displayDays }).map((_, i) => {
-                            const cellDate = addDays(viewStartDate, i);
+                            const cellDate = new Date(viewStartDate);
+                            cellDate.setDate(cellDate.getDate() + i);
                             return (
                               <div 
                                 key={i} 
                                 className={cn(
                                   "border-r border-border last:border-r-0 hover:bg-muted/50 cursor-pointer",
                                   cellDate.getDay() === 0 || cellDate.getDay() === 6 ? "bg-red-50/50" : "",
-                                  isSameDay(new Date(), cellDate) ? "bg-primary/5" : ""
+                                  new Date().toDateString() === cellDate.toDateString() ? "bg-primary/5" : ""
                                 )}
                                 onClick={() => handleCellClick(room.id, cellDate)}
                               ></div>
@@ -433,6 +376,7 @@ const Availability = () => {
                           })}
                         </div>
                         
+                        {/* Bookings */}
                         {room.bookings.map((booking) => {
                           const style = calculateBookingStyle(booking, viewStartDate, displayDays);
                           if (!style) return null;
@@ -499,27 +443,23 @@ const Availability = () => {
                 Upcoming Check-ins
               </h3>
               <div className="space-y-2">
-                {bookingsData && bookingsData
-                  .filter(b => {
-                    const checkInDate = parseISO(b.check_in);
-                    const today = new Date();
-                    const nextWeek = addDays(today, 7);
-                    return b.status === 'confirmed' && 
-                      checkInDate >= today && 
-                      checkInDate <= nextWeek;
-                  })
-                  .slice(0, 5)
-                  .map(booking => {
-                    return (
+                {filteredRooms.flatMap(room => 
+                  room.bookings
+                    .filter(b => 
+                      b.status === 'confirmed' && 
+                      b.startDate >= new Date() && 
+                      b.startDate <= new Date(new Date().setDate(new Date().getDate() + 7))
+                    )
+                    .map(booking => (
                       <div key={booking.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-muted/50">
                         <div>
-                          <p className="font-medium">{booking.guest_name}</p>
+                          <p className="font-medium">{booking.guestName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Room {booking.room_number}, {booking.property}
+                            Room {room.number}, {room.property}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{format(parseISO(booking.check_in), 'MMM d, yyyy')}</p>
+                          <p className="font-medium">{format(booking.startDate, 'MMM d, yyyy')}</p>
                           <Button size="sm" variant="outline" asChild className="mt-1">
                             <Link to={`/bookings/${booking.id}`}>
                               Details
@@ -527,17 +467,15 @@ const Availability = () => {
                           </Button>
                         </div>
                       </div>
-                    );
-                  })
-                }
-                {(!bookingsData || bookingsData.filter(b => {
-                  const checkInDate = parseISO(b.check_in);
-                  const today = new Date();
-                  const nextWeek = addDays(today, 7);
-                  return b.status === 'confirmed' && 
-                    checkInDate >= today && 
-                    checkInDate <= nextWeek;
-                }).length === 0) && (
+                    ))
+                )}
+                {!filteredRooms.some(room => 
+                  room.bookings.some(b => 
+                    b.status === 'confirmed' && 
+                    b.startDate >= new Date() && 
+                    b.startDate <= new Date(new Date().setDate(new Date().getDate() + 7))
+                  )
+                ) && (
                   <p className="text-muted-foreground text-center py-4">No upcoming check-ins</p>
                 )}
               </div>
@@ -549,27 +487,23 @@ const Availability = () => {
                 Upcoming Check-outs
               </h3>
               <div className="space-y-2">
-                {bookingsData && bookingsData
-                  .filter(b => {
-                    const checkOutDate = parseISO(b.check_out);
-                    const today = new Date();
-                    const nextWeek = addDays(today, 7);
-                    return b.status === 'checked-in' && 
-                      checkOutDate >= today && 
-                      checkOutDate <= nextWeek;
-                  })
-                  .slice(0, 5)
-                  .map(booking => {
-                    return (
+                {filteredRooms.flatMap(room => 
+                  room.bookings
+                    .filter(b => 
+                      b.status === 'checked-in' && 
+                      b.endDate >= new Date() && 
+                      b.endDate <= new Date(new Date().setDate(new Date().getDate() + 7))
+                    )
+                    .map(booking => (
                       <div key={booking.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-muted/50">
                         <div>
-                          <p className="font-medium">{booking.guest_name}</p>
+                          <p className="font-medium">{booking.guestName}</p>
                           <p className="text-sm text-muted-foreground">
-                            Room {booking.room_number}, {booking.property}
+                            Room {room.number}, {room.property}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{format(parseISO(booking.check_out), 'MMM d, yyyy')}</p>
+                          <p className="font-medium">{format(booking.endDate, 'MMM d, yyyy')}</p>
                           <Button size="sm" variant="outline" asChild className="mt-1">
                             <Link to={`/bookings/${booking.id}`}>
                               Details
@@ -577,17 +511,15 @@ const Availability = () => {
                           </Button>
                         </div>
                       </div>
-                    );
-                  })
-                }
-                {(!bookingsData || bookingsData.filter(b => {
-                  const checkOutDate = parseISO(b.check_out);
-                  const today = new Date();
-                  const nextWeek = addDays(today, 7);
-                  return b.status === 'checked-in' && 
-                    checkOutDate >= today && 
-                    checkOutDate <= nextWeek;
-                }).length === 0) && (
+                    ))
+                )}
+                {!filteredRooms.some(room => 
+                  room.bookings.some(b => 
+                    b.status === 'checked-in' && 
+                    b.endDate >= new Date() && 
+                    b.endDate <= new Date(new Date().setDate(new Date().getDate() + 7))
+                  )
+                ) && (
                   <p className="text-muted-foreground text-center py-4">No upcoming check-outs</p>
                 )}
               </div>

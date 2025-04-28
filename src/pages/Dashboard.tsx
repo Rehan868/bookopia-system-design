@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OccupancyChart } from "@/components/dashboard/OccupancyChart";
@@ -8,20 +7,6 @@ import { RecentBookings } from "@/components/dashboard/RecentBookings";
 import { BedDouble, ArrowDownToLine, ArrowUpFromLine, Percent, DollarSign } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { format } from 'date-fns';
-
-type DashboardStats = {
-  totalBookings: number;
-  totalRooms: number;
-  totalRevenue: number;
-  occupancyRate: number;
-  availableRooms?: number;
-  todayCheckIns?: number;
-  todayCheckOuts?: number;
-  weeklyOccupancyTrend?: Array<{
-    date: string;
-    occupancy: number;
-  }>;
-};
 
 const Dashboard = () => {
   const {
@@ -68,7 +53,7 @@ const Dashboard = () => {
           title="Occupancy Rate" 
           value={isLoading ? "Loading..." : `${stats?.occupancyRate || 0}%`} 
           trend="up" 
-          trendValue="7%" 
+          trendValue={stats?.weeklyOccupancyTrend || "+0%"} 
           icon={Percent} 
           className="animate-slide-up [animation-delay:300ms]" 
         />

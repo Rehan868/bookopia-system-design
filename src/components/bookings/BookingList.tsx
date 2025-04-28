@@ -1,11 +1,24 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CalendarClock, DoorOpen, Edit, MoreHorizontal, User, Loader } from 'lucide-react';
+import {
+  ArrowRight,
+  CalendarClock,
+  DoorOpen,
+  Edit,
+  MoreHorizontal,
+  User,
+  Loader,
+  AlertCircle,
+  CreditCard,
+  Trash2,
+  FileText,
+  LogIn,
+  LogOut
+} from 'lucide-react';
 import { ViewToggle } from '@/components/ui/ViewToggle';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,7 +30,17 @@ import { useBookings } from '@/hooks/useBookings';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
-import { CreditCard, Trash2, FileText } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
 
 function formatDate(dateString: string) {
   try {
@@ -52,15 +75,33 @@ interface BookingListProps {
   dateRange?: DateRange;
 }
 
-export function BookingList({ 
-  view, 
+export function BookingList({
+  view,
   onViewChange,
   searchQuery = '',
   filterValue = 'all',
   dateRange
 }: BookingListProps) {
-  const { data: bookings, isLoading, error } = useBookings();
+  const { data: bookings, isLoading, error, removeBooking, changeBookingStatus, updatePayment } = useBookings();
   const { toast } = useToast();
+  
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  
+  // State for status update confirmation dialog
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusUpdateDetails, setStatusUpdateDetails] = useState<{
+    id: string;
+    status: string;
+    title: string;
+    description: string;
+  } | null>(null);
+
+  // State for payment update dialog
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<{ id: string; remainingAmount: number } | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
 
   const filteredBookings = useMemo(() => {
     if (!bookings) return [];
@@ -92,6 +133,107 @@ export function BookingList({
     });
   }, [bookings, searchQuery, filterValue, dateRange]);
 
+  const handleDeleteBooking = async () => {
+    if (!selectedBookingId) return;
+    
+    const success = await removeBooking(selectedBookingId);
+    if (success) {
+      toast({
+        title: "Booking Deleted",
+        description: "The booking has been successfully removed.",
+      });
+    }
+    
+    setSelectedBookingId(null);
+    setDeleteDialogOpen(false);
+  };
+  
+  const confirmDelete = (id: string) => {
+    setSelectedBookingId(id);
+    setDeleteDialogOpen(true);
+  };
+  
+  const confirmStatusChange = (id: string, newStatus: string) => {
+    let title = '';
+    let description = '';
+    
+    if (newStatus === 'checked-in') {
+      title = 'Check In Guest';
+      description = 'Are you sure you want to check in this guest? This will mark the room as occupied.';
+    } else if (newStatus === 'checked-out') {
+      title = 'Check Out Guest';
+      description = 'Are you sure you want to check out this guest? This will mark the room as available for cleaning.';
+    } else if (newStatus === 'cancelled') {
+      title = 'Cancel Booking';
+      description = 'Are you sure you want to cancel this booking? This will release the room for new bookings.';
+    } else {
+      title = `Update Status to ${newStatus}`;
+      description = `Are you sure you want to change the status to ${newStatus}?`;
+    }
+    
+    setStatusUpdateDetails({
+      id,
+      status: newStatus,
+      title,
+      description
+    });
+    
+    setStatusDialogOpen(true);
+  };
+  
+  const handleStatusChange = async () => {
+    if (!statusUpdateDetails) return;
+    
+    const { id, status } = statusUpdateDetails;
+    const success = await changeBookingStatus(id, status);
+    
+    if (success) {
+      toast({
+        title: "Status Updated",
+        description: `The booking status has been updated to ${status}.`,
+      });
+    }
+    
+    setStatusUpdateDetails(null);
+    setStatusDialogOpen(false);
+  };
+
+  const handleUpdatePayment = async () => {
+    if (!selectedBooking || !paymentAmount) return;
+
+    try {
+      const amountPaid = parseFloat(paymentAmount);
+      if (isNaN(amountPaid) || amountPaid <= 0 || amountPaid > selectedBooking.remainingAmount) {
+        toast({
+          title: 'Invalid Payment Amount',
+          description: 'Please enter a valid payment amount.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await updatePayment(selectedBooking.id, amountPaid);
+      toast({
+        title: 'Payment Updated',
+        description: 'The payment has been successfully updated.',
+      });
+      setPaymentDialogOpen(false);
+      setSelectedBooking(null);
+      setPaymentAmount('');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update payment. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openPaymentDialog = (id: string, remainingAmount: number) => {
+    setSelectedBooking({ id, remainingAmount });
+    setPaymentDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -104,7 +246,10 @@ export function BookingList({
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <p className="text-red-500">Failed to load bookings data</p>
+        <div className="flex items-center text-red-500 mb-4">
+          <AlertCircle className="h-6 w-6 mr-2" />
+          <p>Failed to load bookings data</p>
+        </div>
         <Button 
           variant="outline" 
           className="mt-4"
@@ -121,6 +266,11 @@ export function BookingList({
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">All Bookings</h2>
         <div className="flex gap-4">
+          <Button asChild className="mr-4">
+            <Link to="/bookings/add">
+              Add New Booking
+            </Link>
+          </Button>
           <ViewToggle view={view} setView={onViewChange} />
         </div>
       </div>
@@ -184,7 +334,7 @@ export function BookingList({
                                 Edit
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openPaymentDialog(booking.id, remainingAmount)}>
                               <CreditCard className="h-4 w-4 mr-2" />
                               Update Payment
                             </DropdownMenuItem>
@@ -192,13 +342,32 @@ export function BookingList({
                               <FileText className="h-4 w-4 mr-2" />
                               Download PDF
                             </DropdownMenuItem>
+                            
+                            {booking.status === 'confirmed' && (
+                              <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'checked-in')}>
+                                <LogIn className="h-4 w-4 mr-2" />
+                                Check In
+                              </DropdownMenuItem>
+                            )}
+                            
                             {booking.status === 'checked-in' && (
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'checked-out')}>
+                                <LogOut className="h-4 w-4 mr-2" />
                                 Check Out
                               </DropdownMenuItem>
                             )}
+                            
+                            {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                              <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'cancelled')}>
+                                Cancel Booking
+                              </DropdownMenuItem>
+                            )}
+                            
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => confirmDelete(booking.id)}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -274,25 +443,58 @@ export function BookingList({
                           <span className="text-muted-foreground">Remaining:</span>
                           <span className="font-medium">${remainingAmount}</span>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Created By:</span>
-                          <span className="font-medium">System</span>
-                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex justify-end gap-2 border-t pt-4">
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/bookings/edit/${booking.id}`}>
-                          <Edit className="h-3.5 w-3.5 mr-1" />
-                          Edit
-                        </Link>
-                      </Button>
-                      <Button size="sm" asChild>
-                        <Link to={`/bookings/${booking.id}`}>
-                          View
-                        </Link>
-                      </Button>
+                    <div className="flex justify-between gap-2 border-t pt-4">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            Actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          {booking.status === 'confirmed' && (
+                            <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'checked-in')}>
+                              <LogIn className="h-4 w-4 mr-2" />
+                              Check In
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {booking.status === 'checked-in' && (
+                            <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'checked-out')}>
+                              <LogOut className="h-4 w-4 mr-2" />
+                              Check Out
+                            </DropdownMenuItem>
+                          )}
+                          
+                          {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                            <DropdownMenuItem onClick={() => confirmStatusChange(booking.id, 'cancelled')}>
+                              Cancel Booking
+                            </DropdownMenuItem>
+                          )}
+                          
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => confirmDelete(booking.id)} className="text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to={`/bookings/edit/${booking.id}`}>
+                            <Edit className="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Link>
+                        </Button>
+                        <Button size="sm" asChild>
+                          <Link to={`/bookings/${booking.id}`}>
+                            View
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -306,6 +508,69 @@ export function BookingList({
           )}
         </div>
       )}
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the booking from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteBooking}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Status Update Confirmation Dialog */}
+      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{statusUpdateDetails?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {statusUpdateDetails?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusChange}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment Update Dialog */}
+      <AlertDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the payment amount to update for this booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="mt-4">
+            <Input
+              type="number"
+              placeholder="Enter payment amount"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUpdatePayment}>Update</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

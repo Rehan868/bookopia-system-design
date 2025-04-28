@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,6 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   ownerLogin: (email: string, password: string) => Promise<void>;
+  isLoading: boolean; // Add loading state to prevent flashing login screen
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,18 +22,61 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Track loading state
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem('user');
-    const storedIsAuthenticated = localStorage.getItem('isAuthenticated');
-    
-    if (storedUser && storedIsAuthenticated === 'true') {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    }
+    // Initialize auth state
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
+      try {
+        // First check if we have a session with Supabase
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        // Then check for stored user data
+        const storedUser = localStorage.getItem('user');
+        const storedIsAuthenticated = localStorage.getItem('isAuthenticated');
+        
+        if (session) {
+          // We have an active session with Supabase
+          if (storedUser && storedIsAuthenticated === 'true') {
+            // We also have stored user data, so restore it
+            setUser(JSON.parse(storedUser));
+            setIsAuthenticated(true);
+          } else {
+            // We have a session but no stored user, try to get user info
+            // (this might happen if localStorage was cleared but session exists)
+            // For now, just sign out to ensure clean state
+            await supabase.auth.signOut();
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        } else {
+          // No Supabase session
+          if (storedUser && storedIsAuthenticated === 'true') {
+            // But we have stored user data for regular staff login (not using Supabase auth)
+            // This is for your mock login that doesn't use Supabase auth
+            setUser(JSON.parse(storedUser));
+            setIsAuthenticated(true);
+          } else {
+            // No session and no stored user
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Set up auth state listener
+    initializeAuth();
+
+    // Set up auth state listener for Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
       
@@ -45,22 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(true);
         }
       } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('user');
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('ownerId');
-      }
-    });
-
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        // We have a session, but we need to verify if we have user data
+        // Only clear auth if we're not using the mock login
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-          setUser(JSON.parse(storedUser));
-          setIsAuthenticated(true);
+          const parsedUser = JSON.parse(storedUser);
+          // If this is a Supabase-authenticated user (owner), clear everything
+          if (parsedUser.role === 'owner') {
+            setUser(null);
+            setIsAuthenticated(false);
+            localStorage.removeItem('user');
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('ownerId');
+          }
         }
       }
     });
@@ -102,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // First check if owner exists in the database
       const { data: owner, error: ownerError } = await supabase
         .from('owners')
-        .select('id, name, email')
+        .select('id, firstName, lastName, email')
         .eq('email', email)
         .single();
 
@@ -125,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Create user object
       const ownerUser = {
         id: owner.id,
-        name: owner.name,
+        name: `${owner.firstName} ${owner.lastName}`,
         email: owner.email,
         role: 'owner',
       };
@@ -146,8 +185,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const logout = async () => {
     try {
-      // Sign out from Supabase
-      await supabase.auth.signOut();
+      // Check if we're an owner (Supabase auth user)
+      if (user?.role === 'owner') {
+        // Sign out from Supabase
+        await supabase.auth.signOut();
+      }
       
       // Remove from local storage
       localStorage.removeItem('user');
@@ -164,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, ownerLogin }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, ownerLogin, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,42 +6,84 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { useNavigate } from 'react-router-dom';
-import { fetchPermissions, createRole, assignPermissionsToRole } from '@/services/api';
-import { Loader2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { 
+  fetchPermissions, 
+  fetchRolePermissions, 
+  updateRole, 
+  assignPermissionsToRole,
+  fetchRoles
+} from '@/services/api';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
-const AddUserRole = () => {
+const EditUserRole = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { id } = useParams();
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const [permissions, setPermissions] = useState({});
   const [allPermissions, setAllPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [roleNotFound, setRoleNotFound] = useState(false);
   
   // Group permissions by category
   const permissionCategories = {};
 
   useEffect(() => {
-    const loadPermissions = async () => {
+    const loadRoleData = async () => {
+      if (!id) return;
+
       try {
         setLoading(true);
+        
+        // 1. Load all permissions
         const permissionsData = await fetchPermissions();
+        setAllPermissions(permissionsData);
         
         // Initialize permissions state with all permissions set to false
         const permissionsState = {};
         permissionsData.forEach(permission => {
           permissionsState[permission.name] = false;
         });
-        
         setPermissions(permissionsState);
-        setAllPermissions(permissionsData);
+        
+        // 2. Load the role data
+        const roles = await fetchRoles();
+        const role = roles.find(r => r.id === id);
+        
+        if (!role) {
+          setRoleNotFound(true);
+          toast({
+            title: 'Error',
+            description: 'Role not found',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        setRoleName(role.name);
+        setRoleDescription(role.description || '');
+        
+        // 3. Load the role's current permissions
+        const rolePermissions = await fetchRolePermissions(id);
+        
+        // Update permissions state based on the role's current permissions
+        const updatedPermissionsState = { ...permissionsState };
+        rolePermissions.forEach(rp => {
+          const permission = permissionsData.find(p => p.id === rp.permission_id);
+          if (permission) {
+            updatedPermissionsState[permission.name] = true;
+          }
+        });
+        
+        setPermissions(updatedPermissionsState);
       } catch (error) {
-        console.error('Error loading permissions:', error);
+        console.error('Error loading role data:', error);
         toast({
           title: 'Error',
-          description: 'Failed to load permissions. Please try again.',
+          description: 'Failed to load role data. Please try again.',
           variant: 'destructive',
         });
       } finally {
@@ -49,8 +91,8 @@ const AddUserRole = () => {
       }
     };
     
-    loadPermissions();
-  }, [toast]);
+    loadRoleData();
+  }, [id, toast]);
 
   // Group permissions by category once permissions are loaded
   allPermissions.forEach(permission => {
@@ -60,7 +102,7 @@ const AddUserRole = () => {
     permissionCategories[permission.category].push(permission);
   });
 
-  const handleSaveRole = async () => {
+  const handleUpdateRole = async () => {
     if (!roleName.trim()) {
       toast({
         title: 'Error',
@@ -73,33 +115,31 @@ const AddUserRole = () => {
     try {
       setSubmitting(true);
       
-      // 1. Create the role
-      const newRole = await createRole({
+      // 1. Update the role
+      await updateRole(id, {
         name: roleName,
         description: roleDescription
       });
       
-      // 2. Assign permissions to the role
+      // 2. Update role permissions
       const selectedPermissionIds = allPermissions
         .filter(permission => permissions[permission.name])
         .map(permission => permission.id);
       
-      if (selectedPermissionIds.length > 0) {
-        await assignPermissionsToRole(newRole.id, selectedPermissionIds);
-      }
+      await assignPermissionsToRole(id, selectedPermissionIds);
       
       toast({
-        title: 'Role Added',
-        description: `The role '${roleName}' has been successfully added.`,
+        title: 'Role Updated',
+        description: `The role '${roleName}' has been successfully updated.`,
       });
       
       // Navigate back to settings page
       navigate('/settings');
     } catch (error) {
-      console.error('Error saving role:', error);
+      console.error('Error updating role:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save role. Please try again.',
+        description: 'Failed to update role. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -134,18 +174,37 @@ const AddUserRole = () => {
     );
   }
 
+  if (roleNotFound) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-semibold mb-2">Role Not Found</h2>
+              <p className="text-muted-foreground mb-6">The role you're looking for doesn't exist or has been deleted.</p>
+              <Button onClick={() => navigate('/settings')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Settings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Add New Role</h1>
-        <p className="text-muted-foreground mt-1">Create a new user role with specific permissions</p>
+        <h1 className="text-3xl font-bold">Edit Role</h1>
+        <p className="text-muted-foreground mt-1">Update role information and permissions</p>
       </div>
       
       <Card>
         <CardHeader>
           <CardTitle>Role Information</CardTitle>
           <CardDescription>
-            Define the basic information for this user role
+            Update the basic information for this user role
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -214,9 +273,9 @@ const AddUserRole = () => {
         </CardContent>
         <div className="px-6 py-4 flex justify-end gap-4 border-t">
           <Button variant="outline" onClick={handleCancel} disabled={submitting}>Cancel</Button>
-          <Button onClick={handleSaveRole} disabled={submitting} className="flex items-center gap-2">
+          <Button onClick={handleUpdateRole} disabled={submitting} className="flex items-center gap-2">
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Role
+            Update Role
           </Button>
         </div>
       </Card>
@@ -224,4 +283,4 @@ const AddUserRole = () => {
   );
 };
 
-export default AddUserRole;
+export default EditUserRole;

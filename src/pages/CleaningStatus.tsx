@@ -59,18 +59,7 @@ const CleaningStatusPage = () => {
   useEffect(() => {
     if (!cleaningStatuses) return;
     
-    // Map the API data to our Room interface
-    const formattedRooms: Room[] = cleaningStatuses.map(room => ({
-      id: room.id,
-      roomId: room.id,
-      roomNumber: room.room_number,
-      property: room.property,
-      status: room.status as CleaningStatus,
-      lastCleaned: room.last_cleaned,
-      nextCheckIn: null
-    }));
-    
-    let filtered = formattedRooms;
+    let filtered = cleaningStatuses;
     
     // Apply search filter
     if (searchQuery) {
@@ -107,7 +96,7 @@ const CleaningStatusPage = () => {
     if (statusFilter !== 'all') params.set('status', statusFilter);
     
     setSearchParams(params, { replace: true });
-  }, [searchQuery, propertyFilter, statusFilter, cleaningStatuses, setSearchParams]);
+  }, [searchQuery, propertyFilter, statusFilter, cleaningStatuses]);
 
   const updateStatus = async (roomId: string, newStatus: CleaningStatus) => {
     try {

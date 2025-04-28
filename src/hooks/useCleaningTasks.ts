@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { fetchCleaningStatuses, updateCleaningStatus } from '@/services/api';
+import { fetchCleaningTasks, updateCleaningTaskStatus } from '@/services/api';
 
 export function useCleaningTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -11,7 +11,7 @@ export function useCleaningTasks() {
     const getTasks = async () => {
       try {
         setIsLoading(true);
-        const cleaningTasks = await fetchCleaningStatuses();
+        const cleaningTasks = await fetchCleaningTasks();
         setTasks(cleaningTasks);
       } catch (err) {
         console.error('Error fetching cleaning tasks:', err);
@@ -26,7 +26,7 @@ export function useCleaningTasks() {
 
   const updateStatus = async (taskId: string, newStatus: string) => {
     try {
-      const updatedTask = await updateCleaningStatus(taskId, newStatus);
+      const updatedTask = await updateCleaningTaskStatus(taskId, newStatus);
       
       // Update the task in the local state
       setTasks(prevTasks => 

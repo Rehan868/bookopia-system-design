@@ -7,14 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { format, isAfter, isBefore, isSameDay, addDays } from 'date-fns';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { createBooking, updateBooking } from '@/services/api';
+import { createBooking, updateBooking, fetchProperties, fetchRooms, fetchSingleRoomAvailability } from '@/services/api';
 
 interface BookingFormData {
   reference: string;
@@ -22,6 +22,7 @@ interface BookingFormData {
   guestEmail: string;
   guestPhone: string;
   property: string;
+  roomId: string; // Changed to store room ID
   roomNumber: string;
   checkIn: Date;
   checkOut: Date;
@@ -43,6 +44,23 @@ interface BookingFormData {
   pendingAmount: number;
 }
 
+interface Property {
+  id: string;
+  name: string;
+}
+
+interface Room {
+  id: string;
+  number: string;
+  type: string;
+  property_id?: string;
+  property?: string;
+  rate: number;
+  capacity: number;
+  status: string;
+  bookedDates?: string[];
+}
+
 interface AddEditBookingFormProps {
   mode: 'add' | 'edit';
   bookingData?: Partial<BookingFormData>;
@@ -62,9 +80,28 @@ const formatNumber = (value: any): string => {
   return num.toFixed(2);
 };
 
+// Custom CSS styles for the calendar component
+const calendarStyles = {
+  unavailable: {
+    opacity: 0.4,
+    textDecoration: 'line-through',
+    backgroundColor: 'rgb(254, 226, 226)', // Light red background
+    color: 'rgb(185, 28, 28)', // Dark red text
+    cursor: 'not-allowed'
+  }
+};
+
 export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   
   const defaultData: BookingFormData = {
     reference: mode === 'edit' ? bookingData?.reference || '' : `BK-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -72,9 +109,10 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     guestEmail: bookingData?.guestEmail || '',
     guestPhone: bookingData?.guestPhone || '',
     property: bookingData?.property || '',
+    roomId: bookingData?.roomId || '',
     roomNumber: bookingData?.roomNumber || '',
     checkIn: bookingData?.checkIn || new Date(),
-    checkOut: bookingData?.checkOut || new Date(new Date().setDate(new Date().getDate() + 3)),
+    checkOut: bookingData?.checkOut || addDays(new Date(), 3),
     adults: ensureNumber(bookingData?.adults) || 2,
     children: ensureNumber(bookingData?.children) || 0,
     baseRate: ensureNumber(bookingData?.baseRate) || 0,
@@ -89,7 +127,7 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     paymentStatus: bookingData?.paymentStatus || 'pending',
     sendConfirmation: bookingData?.sendConfirmation !== undefined ? bookingData.sendConfirmation : true,
     guestDocument: null,
-    amountPaid: bookingData?.amountPaid || 0,
+    amountPaid: ensureNumber(bookingData?.amountPaid) || 0,
     pendingAmount: 0,
   };
   
@@ -98,6 +136,58 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     from: formData.checkIn,
     to: formData.checkOut,
   });
+  
+  // Fetch properties on component mount
+  useEffect(() => {
+    const loadProperties = async () => {
+      setIsLoadingProperties(true);
+      try {
+        const propertiesData = await fetchProperties();
+        setProperties(propertiesData);
+      } catch (error) {
+        console.error('Error loading properties:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load properties. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingProperties(false);
+      }
+    };
+    
+    loadProperties();
+  }, [toast]);
+  
+  // Fetch rooms on component mount
+  useEffect(() => {
+    const loadRooms = async () => {
+      setIsLoadingRooms(true);
+      try {
+        const roomsData = await fetchRooms();
+        setRooms(roomsData);
+        
+        // If property is already selected (edit mode), filter rooms
+        if (formData.property) {
+          const propertyRooms = roomsData.filter(room => 
+            room.property_id === formData.property || room.property === formData.property
+          );
+          setFilteredRooms(propertyRooms);
+        }
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load rooms. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingRooms(false);
+      }
+    };
+    
+    loadRooms();
+  }, [formData.property, toast]);
   
   useEffect(() => {
     setFormData(prev => ({
@@ -114,11 +204,86 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     }));
   }, []);
   
+  // Effect to filter rooms when property changes
+  useEffect(() => {
+    if (formData.property) {
+      const propertyRooms = rooms.filter(room => 
+        room.property_id === formData.property || room.property === formData.property
+      );
+      setFilteredRooms(propertyRooms);
+    } else {
+      setFilteredRooms([]);
+    }
+  }, [formData.property, rooms]);
+  
+  // Effect to update base rate when room changes
+  useEffect(() => {
+    if (formData.roomId) {
+      const selectedRoom = rooms.find(room => room.id === formData.roomId);
+      if (selectedRoom?.rate) {
+        setFormData(prev => ({
+          ...prev,
+          baseRate: selectedRoom.rate,
+          roomNumber: selectedRoom.number
+        }));
+      }
+      
+      // Check room availability for selected dates
+      if (dateRange.from && dateRange.to) {
+        checkRoomAvailability(formData.roomId, dateRange.from, dateRange.to);
+      }
+    }
+  }, [formData.roomId, rooms, dateRange]);
+  
+  // Function to check room availability
+  const checkRoomAvailability = async (roomId: string, startDate: Date, endDate: Date) => {
+    if (!roomId) return;
+    
+    setIsCheckingAvailability(true);
+    try {
+      // Format dates as ISO strings for API
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      // Get room availability
+      const roomAvailability = await fetchSingleRoomAvailability(roomId, startDateStr, endDateStr);
+      
+      // Convert booked dates strings to Date objects
+      const blockedDates = (roomAvailability.bookedDates || []).map(date => new Date(date));
+      setBookedDates(blockedDates);
+    } catch (error) {
+      console.error('Error checking room availability:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to check room availability. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCheckingAvailability(false);
+    }
+  };
+  
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
+    }));
+  };
+  
+  const handlePropertyChange = (propertyId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      property: propertyId,
+      roomId: '', // Clear room selection when property changes
+      roomNumber: '',
+    }));
+  };
+  
+  const handleRoomChange = (roomId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      roomId: roomId,
     }));
   };
   
@@ -144,6 +309,14 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
       ...formData,
       sendConfirmation: checked,
     });
+  };
+  
+  // Custom date range picker function that checks for booked dates
+  const isDateUnavailable = (date: Date) => {
+    // Check if date is in bookedDates
+    return bookedDates.some(bookedDate => 
+      isSameDay(date, bookedDate)
+    );
   };
   
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -177,6 +350,11 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         
         return updatedData;
       });
+      
+      // Check room availability if a room is selected
+      if (formData.roomId && range.to) {
+        checkRoomAvailability(formData.roomId, range.from, range.to);
+      }
     }
   };
   
@@ -190,6 +368,29 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     e.preventDefault();
     
     try {
+      // Check if room is available for selected dates
+      if (bookedDates.length > 0) {
+        const hasConflict = bookedDates.some(date => 
+          (isAfter(date, formData.checkIn) || isSameDay(date, formData.checkIn)) && 
+          (isBefore(date, formData.checkOut) || isSameDay(date, formData.checkOut))
+        );
+        
+        if (hasConflict) {
+          toast({
+            title: 'Date Conflict',
+            description: 'The selected dates are not available for this room. Please choose different dates.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
+      // Find room details based on roomId
+      const selectedRoom = rooms.find(room => room.id === formData.roomId);
+      
+      // Find property name based on propertyId
+      const selectedProperty = properties.find(property => property.id === formData.property);
+      
       const bookingData = {
         booking_number: formData.reference,
         guest_name: formData.guestName,
@@ -197,8 +398,9 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         guest_phone: formData.guestPhone,
         check_in: format(formData.checkIn, 'yyyy-MM-dd'),
         check_out: format(formData.checkOut, 'yyyy-MM-dd'),
-        room_number: formData.roomNumber,
-        property: formData.property,
+        room_id: formData.roomId,
+        room_number: selectedRoom?.number || formData.roomNumber,
+        property: selectedProperty?.name || formData.property,
         adults: formData.adults,
         children: formData.children,
         amount: formData.totalAmount,
@@ -452,31 +654,56 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="property">Property*</Label>
-                  <Select name="property" value={formData.property} onValueChange={value => setFormData({...formData, property: value})} required>
-                    <SelectTrigger id="property">
-                      <SelectValue placeholder="Select property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Marina Tower">Marina Tower</SelectItem>
-                      <SelectItem value="Downtown Heights">Downtown Heights</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {isLoadingProperties ? (
+                    <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-muted-foreground">Loading properties...</span>
+                    </div>
+                  ) : (
+                    <Select 
+                      value={formData.property} 
+                      onValueChange={handlePropertyChange} 
+                      required
+                    >
+                      <SelectTrigger id="property">
+                        <SelectValue placeholder="Select property" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {properties.map(property => (
+                          <SelectItem key={property.id} value={property.id}>
+                            {property.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="roomNumber">Room Number*</Label>
-                  <Select name="roomNumber" value={formData.roomNumber} onValueChange={value => setFormData({...formData, roomNumber: value})} required>
-                    <SelectTrigger id="roomNumber">
-                      <SelectValue placeholder="Select room" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="101">101</SelectItem>
-                      <SelectItem value="102">102</SelectItem>
-                      <SelectItem value="201">201</SelectItem>
-                      <SelectItem value="202">202</SelectItem>
-                      <SelectItem value="301">301</SelectItem>
-                      <SelectItem value="302">302</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="roomNumber">Room*</Label>
+                  {isLoadingRooms ? (
+                    <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="text-muted-foreground">Loading rooms...</span>
+                    </div>
+                  ) : (
+                    <Select 
+                      value={formData.roomId} 
+                      onValueChange={handleRoomChange} 
+                      disabled={!formData.property || filteredRooms.length === 0}
+                      required
+                    >
+                      <SelectTrigger id="roomId">
+                        <SelectValue placeholder={!formData.property ? "Select property first" : "Select room"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredRooms.map(room => (
+                          <SelectItem key={room.id} value={room.id}>
+                            {room.number} - {room.type} (${room.rate}/night)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
               </div>
               
@@ -506,17 +733,40 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange?.from}
-                      selected={dateRange}
-                      onSelect={handleDateRangeChange}
-                      numberOfMonths={2}
-                      className="pointer-events-auto"
-                    />
+                    {isCheckingAvailability ? (
+                      <div className="flex items-center justify-center p-4 h-32">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-2">Checking availability...</span>
+                      </div>
+                    ) : (
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={handleDateRangeChange}
+                        numberOfMonths={2}
+                        disabled={isDateUnavailable}
+                        modifiers={{
+                          unavailable: (date) => isDateUnavailable(date)
+                        }}
+                        modifiersStyles={{
+                          unavailable: {
+                            backgroundColor: 'rgb(254, 226, 226)',
+                            color: 'rgb(185, 28, 28)',
+                            textDecoration: 'line-through'
+                          }
+                        }}
+                        className="pointer-events-auto"
+                      />
+                    )}
                   </PopoverContent>
                 </Popover>
+                {bookedDates.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    * Dates highlighted in the calendar are already booked for this room.
+                  </p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
