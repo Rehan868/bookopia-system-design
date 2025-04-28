@@ -925,33 +925,54 @@ export const fetchRoomTypes = async (): Promise<any[]> => {
   }
 };
 
-export const fetchCleaningStatuses = async (): Promise<any[]> => {
+export const fetchCleaningStatuses = async () => {
   try {
+    // Since there might not be a cleaning_statuses table, 
+    // we'll get this information from rooms
     const { data, error } = await supabase
-      .from('cleaning_statuses')
-      .select('*');
-
+      .from('rooms')
+      .select('id, number, property_name, status')
+      .order('number');
+    
     if (error) throw error;
-    return data;
+    
+    // Convert to cleaning tasks format
+    return data.map(room => ({
+      id: room.id,
+      room_number: room.number,
+      property: room.property_name,
+      status: room.status || 'needs_cleaning',
+      last_cleaned: null, // This would come from a proper cleaning_statuses table
+      assigned_to: null
+    }));
   } catch (error) {
     console.error('Error fetching cleaning statuses:', error);
     throw error;
   }
 };
 
-export const updateCleaningStatus = async (id: string, status: string): Promise<any> => {
+export const updateCleaningStatus = async (roomId: string, newStatus: string) => {
   try {
+    // Since there might not be a cleaning_statuses table,
+    // we'll update the room status
     const { data, error } = await supabase
-      .from('cleaning_statuses')
-      .update({ status })
-      .eq('id', id)
+      .from('rooms')
+      .update({ status: newStatus })
+      .eq('id', roomId)
       .select()
       .single();
-
+    
     if (error) throw error;
-    return data;
+    return {
+      id: data.id,
+      room_number: data.number,
+      property: data.property_name,
+      status: data.status,
+      last_cleaned: new Date().toISOString(),
+      assigned_to: null
+    };
   } catch (error) {
-    console.error(`Error updating cleaning status for ID ${id}:`, error);
+    console.error('Error updating cleaning status:', error);
     throw error;
   }
 };
@@ -1118,6 +1139,55 @@ export const fetchProperties = async (): Promise<any[]> => {
     return data;
   } catch (error) {
     console.error('Error fetching properties:', error);
+    throw error;
+  }
+};
+
+export const fetchOwnerById = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('owners')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching owner:', error);
+    throw error;
+  }
+};
+
+export const updateOwner = async (id: string, ownerData: Partial<Owner>) => {
+  try {
+    const { data, error } = await supabase
+      .from('owners')
+      .update(ownerData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating owner:', error);
+    throw error;
+  }
+};
+
+export const fetchExpenseById = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching expense:', error);
     throw error;
   }
 };

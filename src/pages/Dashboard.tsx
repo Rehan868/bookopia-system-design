@@ -8,6 +8,20 @@ import { BedDouble, ArrowDownToLine, ArrowUpFromLine, Percent, DollarSign } from
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { format } from 'date-fns';
 
+type DashboardStats = {
+  totalBookings: number;
+  totalRooms: number;
+  totalRevenue: number;
+  occupancyRate: number;
+  availableRooms?: number;
+  todayCheckIns?: number;
+  todayCheckOuts?: number;
+  weeklyOccupancyTrend?: Array<{
+    date: string;
+    occupancy: number;
+  }>;
+};
+
 const Dashboard = () => {
   const {
     data: stats,

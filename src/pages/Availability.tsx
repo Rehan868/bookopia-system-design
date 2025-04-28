@@ -69,6 +69,21 @@ const calculateBookingStyle = (booking: RoomBooking, viewStartDate: Date, totalD
   };
 };
 
+// Add the status field to the room data structure
+// This is just a type augmentation for the component
+type RoomWithBookings = {
+  id: string;
+  number: string;
+  type: string;
+  property: string;
+  property_name: string;
+  capacity: number;
+  rate: number;
+  status: string;
+  bookedDates: any[];
+  bookings: any[];
+};
+
 const Availability = () => {
   const { toast } = useToast();
   const [viewStartDate, setViewStartDate] = useState(new Date());
@@ -78,27 +93,27 @@ const Availability = () => {
   const [roomStatus, setRoomStatus] = useState<string | undefined>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
-  
+  const [filteredRooms, setFilteredRooms] = useState<RoomWithBookings[]>([]);
+
   // Calculate end date based on display days
   const endDate = new Date(viewStartDate);
   endDate.setDate(endDate.getDate() + displayDays);
-  
+
   // Fetch availability data
   const { data: availabilityData, isLoading: availabilityLoading } = useAvailability(
     viewStartDate, 
     endDate
   );
-  
+
   // Fetch bookings data
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings();
-  
+
   const calendarDates = generateDates(viewStartDate, displayDays);
-  
+
   // Process availability and bookings data
   useEffect(() => {
     if (availabilityData && bookingsData) {
-      const processedRooms: Room[] = availabilityData.map(room => {
+      const processedRooms: RoomWithBookings[] = availabilityData.map(room => {
         // Find bookings for this room
         const roomBookings = bookingsData.filter(booking => 
           booking.room_number === room.number
@@ -159,7 +174,7 @@ const Availability = () => {
       setFilteredRooms(filtered);
     }
   }, [availabilityData, bookingsData, property, roomType, roomStatus, searchQuery]);
-  
+
   const moveCalendar = (direction: 'prev' | 'next') => {
     const newDate = new Date(viewStartDate);
     if (direction === 'prev') {

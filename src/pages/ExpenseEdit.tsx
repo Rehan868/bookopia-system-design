@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -184,7 +184,6 @@ const ExpenseEdit = () => {
                       <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                       <SelectItem value="Cash">Cash</SelectItem>
                       {values.payment_method && (
-                        // Fix the property naming issues
                         <SelectItem value={values.payment_method || ''}>{values.payment_method}</SelectItem>
                       )}
                     </SelectContent>

@@ -13,7 +13,7 @@ export function useRooms() {
       try {
         setIsLoading(true);
         const rooms = await fetchRooms();
-        setData(rooms as unknown as Room[]);
+        setData(rooms);
       } catch (err) {
         console.error('Error in useRooms:', err);
         setError(err);
@@ -44,7 +44,7 @@ export function useRoom(id: string) {
       try {
         setIsLoading(true);
         const room = await fetchRoomById(id);
-        setData(room as unknown as Room);
+        setData(room);
       } catch (err) {
         console.error(`Error in useRoom for ID ${id}:`, err);
         setError(err);

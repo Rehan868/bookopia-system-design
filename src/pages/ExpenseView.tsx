@@ -88,10 +88,10 @@ const ExpenseView = () => {
             <div>
               <p className="text-sm text-muted-foreground">Payment Status</p>
               <Badge 
-                variant={expense.paymentMethod === 'Paid' ? 'secondary' : 'outline'}
+                variant={expense.payment_method === 'Paid' ? 'secondary' : 'outline'}
                 className="mt-1"
               >
-                {expense.paymentMethod || 'Pending'}
+                {expense.payment_method || 'Pending'}
               </Badge>
             </div>
             <div>

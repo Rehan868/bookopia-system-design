@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { fetchOwnerById, updateOwner } from '@/services/api';
-import { useEffect, useState } from 'react';
+import { useOwner } from '@/hooks/useOwners';
 import { Owner } from '@/services/supabase-types';
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useState } from 'react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from '@/integrations/supabase/client';
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
@@ -28,35 +29,30 @@ const OwnerEdit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [owner, setOwner] = useState<Owner | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadOwner = async () => {
-      if (id) {
-        setIsLoading(true);
-        try {
-          const ownerData = await fetchOwnerById(id);
-          setOwner(ownerData);
-        } catch (error) {
-          toast({
-            title: "Error fetching owner",
-            description: "Failed to load owner details. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadOwner();
-  }, [id, toast]);
+  const { data: owner, isLoading } = useOwner(id || '');
 
   const onSubmit = async (values: Owner) => {
     try {
       if (id) {
-        await updateOwner(id, values);
+        const { error } = await supabase
+          .from('owners')
+          .update({
+            name: values.name,
+            email: values.email,
+            phone: values.phone,
+            address: values.address,
+            city: values.city,
+            country: values.country,
+            birthdate: values.birthdate,
+            commission_rate: values.commission_rate,
+            payment_details: values.payment_details,
+          })
+          .eq('id', id);
+
+        if (error) {
+          throw error;
+        }
+
         toast({
           title: "Owner updated",
           description: "Owner details have been updated successfully.",
@@ -138,7 +134,7 @@ const OwnerEdit = () => {
         </CardHeader>
         <CardContent>
           <Formik
-            initialValues={{
+            initialValues={owner || {
               name: '',
               email: '',
               phone: '',

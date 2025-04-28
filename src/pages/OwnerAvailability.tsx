@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +5,21 @@ import { format } from 'date-fns';
 import { useAvailability } from '@/hooks/useAvailability';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+
+// Add the status field to the room data structure
+// This is just a type augmentation for the component
+type RoomWithBookings = {
+  id: string;
+  number: string;
+  type: string;
+  property: string;
+  property_name: string;
+  capacity: number;
+  rate: number;
+  status: string;
+  bookedDates: any[];
+  bookings: any[];
+};
 
 const OwnerAvailability = () => {
   const { toast } = useToast();
