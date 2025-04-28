@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/hooks/use-auth';
 
 export default function OwnerLogin() {
   const [email, setEmail] = useState('');
@@ -12,17 +11,6 @@ export default function OwnerLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { ownerLogin, isAuthenticated, isLoading: authLoading, user } = useAuth();
-
-  // Redirect if already authenticated as an owner
-  useEffect(() => {
-    if (isAuthenticated && !authLoading && user?.role === 'owner') {
-      navigate('/owner/dashboard');
-    } else if (isAuthenticated && !authLoading) {
-      // If authenticated but not as owner, navigate to staff dashboard
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,11 +27,26 @@ export default function OwnerLogin() {
     setIsLoading(true);
     
     try {
-      await ownerLogin(email, password);
+      // For demo purposes, we'll just accept any credentials
+      // This simulates a successful login without database authentication
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Store simple owner information in localStorage
+      const mockOwner = {
+        id: 'demo-owner-1',
+        name: 'Demo Owner',
+        email: email,
+        role: 'owner'
+      };
+      
+      localStorage.setItem('user', JSON.stringify(mockOwner));
+      localStorage.setItem('isAuthenticated', 'true');
+      
       toast({
         title: "Success!",
-        description: "You have successfully logged in."
+        description: "You have successfully logged in as an owner."
       });
+      
       navigate('/owner/dashboard');
     } catch (error) {
       console.error("Login error:", error);
@@ -56,15 +59,6 @@ export default function OwnerLogin() {
       setIsLoading(false);
     }
   };
-
-  // Show loading indicator while checking auth state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted">

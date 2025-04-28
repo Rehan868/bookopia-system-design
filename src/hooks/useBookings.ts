@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Booking } from '@/services/supabase-types';
 import { 
@@ -6,7 +5,7 @@ import {
   fetchBookingById, 
   fetchTodayCheckouts, 
   fetchTodayCheckins, 
-  deleteBooking,
+  deleteBooking, 
   updateBookingStatus,
   updateBookingPayment
 } from '@/services/api';

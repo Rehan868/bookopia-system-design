@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,7 +8,6 @@ import { Header } from "@/components/layout/Header";
 import { OwnerLayout } from "@/components/layout/OwnerLayout";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { SupabaseConnectionStatus } from "@/components/ui/SupabaseConnectionStatus";
-import { Loading } from "@/components/ui/loading";
 import Dashboard from "./pages/Dashboard";
 import Bookings from "./pages/Bookings";
 import BookingView from "./pages/BookingView";
@@ -56,16 +54,8 @@ import SmsTemplates from "./pages/SmsTemplates";
 import SmsTemplateAdd from "./pages/SmsTemplateAdd";
 import SmsTemplateEdit from "./pages/SmsTemplateEdit";
 import AddUserRole from "./pages/AddUserRole";
-import Index from "./pages/Index";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ 
   children,
@@ -78,7 +68,9 @@ const ProtectedRoute = ({
   
   // Don't redirect while auth is being checked
   if (isLoading) {
-    return <Loading fullScreen message="Verifying authentication..." />;
+    return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>;
   }
   
   if (!isAuthenticated) {
@@ -117,11 +109,10 @@ const App = () => (
         <SupabaseConnectionStatus />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/owner/login" element={<OwnerLogin />} />
             
-            <Route path="/dashboard" element={
+            <Route path="/" element={
               <ProtectedRoute>
                 <MainLayout />
               </ProtectedRoute>
@@ -179,7 +170,7 @@ const App = () => (
               <Route path="settings/sms-templates" element={<SmsTemplates />} />
               <Route path="settings/sms-templates/new" element={<SmsTemplateAdd />} />
               <Route path="settings/sms-templates/edit/:id" element={<SmsTemplateEdit />} />
-              <Route path="AddUserRole" element={<AddUserRole />} />
+              <Route path="/AddUserRole" element={<AddUserRole />} />
             </Route>
             
             <Route path="/owner" element={

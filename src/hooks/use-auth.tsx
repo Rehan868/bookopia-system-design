@@ -1,260 +1,112 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/services/supabase';
-import { User } from '@/services/supabase-types';
+import { supabase } from '@/integrations/supabase/client';
 
-interface UserDetails extends User {
-  role: string;
-}
-
-interface OwnerDetails {
+interface User {
   id: string;
   name: string;
   email: string;
+  role: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  isLoading: boolean;
-  user: UserDetails | null;
-  owner: OwnerDetails | null;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signOut: () => Promise<void>;
-  signInAsOwner: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  ownerLogin: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
+  isLoading: boolean; // Add loading state to prevent flashing login screen
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<UserDetails | null>(null);
-  const [owner, setOwner] = useState<OwnerDetails | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Track loading state
 
-  // Check auth state on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    // Initialize auth state
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
       try {
-        setIsLoading(true);
+        // Check for stored user data
+        const storedUser = localStorage.getItem('user');
+        const storedIsAuthenticated = localStorage.getItem('isAuthenticated');
         
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          setIsAuthenticated(false);
-          setUser(null);
-          return;
-        }
-        
-        // Get the user from the session
-        const currentUser = sessionData.session.user;
-        
-        if (currentUser) {
-          // Check if the user is a staff member (stored in users table)
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
-          
-          if (userData) {
-            setUser(userData as UserDetails);
-            setIsAuthenticated(true);
-            setOwner(null);
-            return;
-          }
-          
-          // Check if the user is an owner
-          const { data: ownerData, error: ownerError } = await supabase
-            .from('owners')
-            .select('id, name, email')
-            .eq('id', currentUser.id)
-            .single();
-          
-          if (ownerData) {
-            setOwner({
-              id: ownerData.id,
-              name: ownerData.name,
-              email: ownerData.email
-            });
-            setIsAuthenticated(true);
-            setUser(null);
-            return;
-          }
-          
-          // If we reach here, the user is authenticated but doesn't have a record in users or owners
-          setIsAuthenticated(false);
-          setUser(null);
-          setOwner(null);
-          
-          // Log out the user as they aren't properly set up in our system
-          await supabase.auth.signOut();
+        if (storedUser && storedIsAuthenticated === 'true') {
+          // We have stored user data for regular staff login
+          setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
         } else {
+          // No stored user
           setIsAuthenticated(false);
           setUser(null);
-          setOwner(null);
         }
       } catch (error) {
-        console.error('Error checking auth state:', error);
+        console.error("Error initializing auth:", error);
         setIsAuthenticated(false);
         setUser(null);
-        setOwner(null);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    checkAuth();
-    
-    // Subscribe to auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-        setUser(null);
-        setOwner(null);
-      } else if (event === 'SIGNED_IN' && session) {
-        // Re-run our auth check when the user signs in
-        checkAuth();
-      }
-    });
-    
-    // Clean up the subscription
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+
+    initializeAuth();
   }, []);
-  
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) return { success: false, error: error.message };
-      
-      if (data.user) {
-        // Check if the user exists in the users table
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (userData) {
-          setUser(userData as UserDetails);
-          setIsAuthenticated(true);
-          setOwner(null);
-          return { success: true };
-        } else {
-          // User doesn't exist in our users table, sign them out
-          await supabase.auth.signOut();
-          return { success: false, error: 'User not found in the system' };
-        }
-      }
-      
-      return { success: false, error: 'An unexpected error occurred' };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
-    }
-  };
-  
-  const signInAsOwner = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) return { success: false, error: error.message };
-      
-      if (data.user) {
-        // Check if the user exists in the owners table
-        const { data: ownerData, error: ownerError } = await supabase
-          .from('owners')
-          .select('id, name, email')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (ownerData) {
-          setOwner({
-            id: ownerData.id,
-            name: ownerData.name,
-            email: ownerData.email
-          });
-          setIsAuthenticated(true);
-          setUser(null);
-          return { success: true };
-        } else {
-          // User doesn't exist in our owners table, sign them out
-          await supabase.auth.signOut();
-          return { success: false, error: 'Owner not found in the system' };
-        }
-      }
-      
-      return { success: false, error: 'An unexpected error occurred' };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { success: false, error: 'An unexpected error occurred' };
-    }
-  };
-  
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setIsAuthenticated(false);
-      setUser(null);
-      setOwner(null);
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
 
-  // Additional wrapper functions for compatibility with existing code
   const login = async (email: string, password: string) => {
-    const result = await signIn(email, password);
-    if (!result.success) {
-      throw new Error(result.error);
+    try {
+      // This is a mock login function for staff - in a real app, this would call your API
+      // Simulate API call with delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // For demo purposes, we'll just accept any credentials
+      const mockUser = {
+        id: '1',
+        name: 'Admin User',
+        email: email,
+        role: 'admin',
+      };
+      
+      // Store in local storage
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      localStorage.setItem('isAuthenticated', 'true');
+      
+      // Update state
+      setUser(mockUser);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
-  };
-
-  const ownerLogin = async (email: string, password: string) => {
-    const result = await signInAsOwner(email, password);
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-  };
-
-  const logout = async () => {
-    await signOut();
   };
   
+  const logout = async () => {
+    try {
+      // Remove from local storage
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      
+      // Update state
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error("Logout error:", error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isLoading,
-        user,
-        owner,
-        signIn,
-        signOut,
-        signInAsOwner,
-        login,
-        ownerLogin,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
