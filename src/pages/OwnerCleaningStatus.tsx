@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -9,50 +9,17 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader } from 'lucide-react';
 
-// Mock data - in a real app this would come from an API
-const cleaningTasks = [
-  {
-    id: '1',
-    room_number: '101',
-    property: 'Beachfront Villa',
-    assigned_to: 'Maria Garcia',
-    date: '2025-04-08',
-    status: 'completed'
-  },
-  {
-    id: '2',
-    room_number: '102',
-    property: 'Beachfront Villa',
-    assigned_to: 'James Wilson',
-    date: '2025-04-08',
-    status: 'in_progress'
-  },
-  {
-    id: '3',
-    room_number: '103',
-    property: 'Beachfront Villa',
-    assigned_to: 'Maria Garcia',
-    date: '2025-04-09',
-    status: 'scheduled'
-  },
-  {
-    id: '4',
-    room_number: '201',
-    property: 'Downtown Heights',
-    assigned_to: 'Robert Johnson',
-    date: '2025-04-08',
-    status: 'delayed'
-  },
-  {
-    id: '5',
-    room_number: '202',
-    property: 'Downtown Heights',
-    assigned_to: 'Robert Johnson',
-    date: '2025-04-09',
-    status: 'scheduled'
-  },
-];
+interface CleaningTask {
+  id: string;
+  room_number: string;
+  property: string;
+  assigned_to: string;
+  date: string;
+  status: 'completed' | 'in_progress' | 'scheduled' | 'delayed';
+}
 
 const statusColors = {
   completed: "bg-green-100 text-green-800 border-green-200",
@@ -68,7 +35,80 @@ const statusLabels = {
   delayed: "Delayed",
 };
 
+// Function to map room status to cleaning task status
+const mapRoomStatusToTaskStatus = (status: string): 'completed' | 'in_progress' | 'scheduled' | 'delayed' => {
+  switch (status) {
+    case 'available':
+      return 'completed';
+    case 'occupied':
+      return 'in_progress';
+    case 'maintenance':
+      return 'delayed';
+    default:
+      return 'scheduled';
+  }
+};
+
 const OwnerCleaningStatus = () => {
+  const [cleaningTasks, setCleaningTasks] = useState<CleaningTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCleaningTasks = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch rooms with cleaning status
+        const { data, error } = await supabase
+          .from('rooms')
+          .select(`
+            id,
+            number,
+            property_name,
+            status
+          `);
+        
+        if (error) throw error;
+        
+        // Map to the cleaning tasks format
+        const tasks = data.map(room => ({
+          id: room.id,
+          room_number: room.number,
+          property: room.property_name,
+          assigned_to: 'Staff Member', // This would come from a join table in a real implementation
+          date: new Date().toISOString().split('T')[0], // Today's date
+          status: mapRoomStatusToTaskStatus(room.status)
+        }));
+        
+        setCleaningTasks(tasks);
+      } catch (err) {
+        console.error('Error fetching cleaning tasks:', err);
+        setError('Failed to load cleaning tasks. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCleaningTasks();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500 p-4">
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>

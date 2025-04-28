@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search, RotateCw, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -22,20 +23,8 @@ import {
 } from "@/components/ui/table";
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { useCleaningStatus, useUpdateCleaningStatus } from '@/hooks/useCleaningStatus';
+import { useCleaningStatus, useUpdateCleaningStatus, CleaningStatus } from '@/hooks/useCleaningStatus';
 import { format } from 'date-fns';
-
-type CleaningStatus = 'Clean' | 'Dirty' | 'In Progress';
-
-interface Room {
-  id: string;
-  roomId: string;
-  roomNumber: string;
-  property: string;
-  status: CleaningStatus;
-  lastCleaned: string | null;
-  nextCheckIn: string | null;
-}
 
 const CleaningStatusPage = () => {
   const { toast } = useToast();
@@ -48,7 +37,7 @@ const CleaningStatusPage = () => {
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || "");
   const [propertyFilter, setPropertyFilter] = useState<string>(searchParams.get('property') || "all");
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || "all");
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
+  const [filteredRooms, setFilteredRooms] = useState<CleaningStatus[]>([]);
   
   // Extract unique properties for the property filter
   const properties = cleaningStatuses 
@@ -98,7 +87,7 @@ const CleaningStatusPage = () => {
     setSearchParams(params, { replace: true });
   }, [searchQuery, propertyFilter, statusFilter, cleaningStatuses]);
 
-  const updateStatus = async (roomId: string, newStatus: CleaningStatus) => {
+  const updateStatus = async (roomId: string, newStatus: CleaningStatus['status']) => {
     try {
       await updateStatusMutation.mutateAsync({ id: roomId, status: newStatus });
       
@@ -114,7 +103,7 @@ const CleaningStatusPage = () => {
     }
   };
 
-  const getStatusIcon = (status: CleaningStatus) => {
+  const getStatusIcon = (status: CleaningStatus['status']) => {
     switch(status) {
       case 'Clean': 
         return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -125,7 +114,7 @@ const CleaningStatusPage = () => {
     }
   };
 
-  const getStatusBadge = (status: CleaningStatus) => {
+  const getStatusBadge = (status: CleaningStatus['status']) => {
     switch(status) {
       case 'Clean': 
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Clean</Badge>;
