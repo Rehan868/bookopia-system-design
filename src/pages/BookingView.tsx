@@ -38,7 +38,7 @@ const BookingView = () => {
     );
   }
 
-  return <BookingDetails />;
+  return <BookingDetails booking={booking} />;
 };
 
 export default BookingView;

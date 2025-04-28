@@ -16,6 +16,9 @@ export const fetchBooking = async (id: string) => {
   return data;
 };
 
+// Alias to maintain compatibility with existing imports
+export const fetchBookingById = fetchBooking;
+
 export const createBooking = async (booking: any) => {
   const { data, error } = await supabase.from('bookings').insert([booking]).select();
   if (error) throw error;
@@ -34,6 +37,62 @@ export const deleteBooking = async (id: string) => {
   return true;
 };
 
+// Status and payment update specific functions
+export const updateBookingStatus = async (id: string, status: string) => {
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status })
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const updateBookingPayment = async (id: string, amountPaid: number) => {
+  const booking = await fetchBooking(id);
+  const amount = booking.amount || 0;
+  const remaining = Math.max(0, amount - amountPaid);
+  const paymentStatus = remaining <= 0 ? 'paid' : 'partial';
+  
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({
+      amount_paid: amountPaid,
+      remaining_amount: remaining,
+      payment_status: paymentStatus
+    })
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
+// Today's check-ins and check-outs
+export const fetchTodayCheckins = async () => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('check_in', today)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data;
+};
+
+export const fetchTodayCheckouts = async () => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('check_out', today)
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data;
+};
+
 // Room functions
 export const fetchRooms = async () => {
   const { data, error } = await supabase.from('rooms').select('*').order('property_name', { ascending: true });
@@ -45,6 +104,37 @@ export const fetchRoom = async (id: string) => {
   const { data, error } = await supabase.from('rooms').select('*').eq('id', id).single();
   if (error) throw error;
   return data;
+};
+
+// Alias to maintain compatibility with existing imports
+export const fetchRoomById = fetchRoom;
+
+export const createRoom = async (room: any) => {
+  const { data, error } = await supabase.from('rooms').insert([room]).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const updateRoom = async (id: string, room: any) => {
+  const { data, error } = await supabase.from('rooms').update(room).eq('id', id).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const deleteRoom = async (id: string) => {
+  const { error } = await supabase.from('rooms').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+};
+
+export const updateRoomStatus = async (id: string, status: string) => {
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({ status })
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  return data[0];
 };
 
 export const fetchRoomTypes = async () => {
@@ -73,6 +163,33 @@ export const fetchUsers = async () => {
   return data;
 };
 
+export const fetchUser = async (id: string) => {
+  const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
+};
+
+// Alias to maintain compatibility
+export const fetchUserById = fetchUser;
+
+export const createUser = async (user: any) => {
+  const { data, error } = await supabase.from('users').insert([user]).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const updateUser = async (id: string, user: any) => {
+  const { data, error } = await supabase.from('users').update(user).eq('id', id).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const deleteUser = async (id: string) => {
+  const { error } = await supabase.from('users').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+};
+
 export const fetchRoles = async () => {
   const { data, error } = await supabase.from('roles').select('*');
   if (error) throw error;
@@ -85,6 +202,48 @@ export const fetchPermissions = async () => {
   return data;
 };
 
+export const createRole = async (role: any) => {
+  const { data, error } = await supabase.from('roles').insert([role]).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const updateRole = async (id: string, role: any) => {
+  const { data, error } = await supabase.from('roles').update(role).eq('id', id).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const deleteRole = async (id: string) => {
+  const { error } = await supabase.from('roles').delete().eq('id', id);
+  if (error) throw error;
+  return true;
+};
+
+export const fetchRolePermissions = async (roleId: string) => {
+  const { data, error } = await supabase
+    .from('role_permissions')
+    .select('permission_id')
+    .eq('role_id', roleId);
+  if (error) throw error;
+  return data.map(item => item.permission_id);
+};
+
+export const assignPermissionsToRole = async (roleId: string, permissionIds: string[]) => {
+  // First remove all existing permissions for this role
+  await supabase.from('role_permissions').delete().eq('role_id', roleId);
+  
+  // Then add the new permissions
+  const permissionsToInsert = permissionIds.map(permissionId => ({
+    role_id: roleId,
+    permission_id: permissionId
+  }));
+  
+  const { error } = await supabase.from('role_permissions').insert(permissionsToInsert);
+  if (error) throw error;
+  return true;
+};
+
 export const assignRoleToUser = async (userId: string, roleId: string) => {
   const { data, error } = await supabase.from('user_roles').insert([{ user_id: userId, role_id: roleId }]);
   if (error) throw error;
@@ -93,6 +252,37 @@ export const assignRoleToUser = async (userId: string, roleId: string) => {
 
 export const removeRoleFromUser = async (userId: string, roleId: string) => {
   const { error } = await supabase.from('user_roles').delete().eq('user_id', userId).eq('role_id', roleId);
+  if (error) throw error;
+  return true;
+};
+
+// Expense functions
+export const fetchExpenses = async () => {
+  const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
+  if (error) throw error;
+  return data;
+};
+
+export const fetchExpense = async (id: string) => {
+  const { data, error } = await supabase.from('expenses').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
+};
+
+export const createExpense = async (expense: any) => {
+  const { data, error } = await supabase.from('expenses').insert([expense]).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const updateExpense = async (id: string, expense: any) => {
+  const { data, error } = await supabase.from('expenses').update(expense).eq('id', id).select();
+  if (error) throw error;
+  return data[0];
+};
+
+export const deleteExpense = async (id: string) => {
+  const { error } = await supabase.from('expenses').delete().eq('id', id);
   if (error) throw error;
   return true;
 };
@@ -185,6 +375,19 @@ export const fetchDashboardStats = async () => {
 export const fetchOccupancyData = async () => {
   // This is a mock function that should return occupancy data for the past X days
   return generateMockOccupancyData();
+};
+
+// Owner functions
+export const fetchOwners = async () => {
+  const { data, error } = await supabase.from('owners').select('*');
+  if (error) throw error;
+  return data;
+};
+
+export const fetchOwner = async (id: string) => {
+  const { data, error } = await supabase.from('owners').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
 };
 
 // Utility functions for the API

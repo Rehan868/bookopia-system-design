@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUpFromLine, User } from 'lucide-react';
@@ -7,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useTodayCheckouts } from '@/hooks/useBookings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { Booking } from '@/services/supabase-types';
 
 export function TodayCheckouts() {
   const { data: checkouts, isLoading, error } = useTodayCheckouts();
@@ -45,7 +47,7 @@ export function TodayCheckouts() {
       );
     }
 
-    if (!checkouts || checkouts.length === 0) {
+    if (!checkouts || !Array.isArray(checkouts) || checkouts.length === 0) {
       return (
         <div className="text-center py-6 text-muted-foreground">
           <p>No check-outs scheduled for today</p>
@@ -55,7 +57,7 @@ export function TodayCheckouts() {
 
     return (
       <div className="divide-y">
-        {checkouts.map((checkout) => (
+        {checkouts.map((checkout: Booking) => (
           <div key={checkout.id} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
