@@ -1,26 +1,22 @@
-
-import { cleaningStatus } from "@/lib/mock-data";
-import { useQuery } from "@tanstack/react-query";
+import { fetchCleaningStatuses, updateCleaningStatus } from "@/services/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const useCleaningStatus = () => {
   return useQuery({
     queryKey: ["cleaningStatus"],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return cleaningStatus;
-    },
+    queryFn: fetchCleaningStatuses,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 
 export const useRoomCleaningStatus = (roomId: string) => {
+  const { data: allStatuses } = useCleaningStatus();
+  
   return useQuery({
     queryKey: ["cleaningStatus", roomId],
     queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const status = cleaningStatus.find(s => s.roomId === roomId);
+      // Find the status for this specific room
+      const status = allStatuses?.find(s => s.roomId === roomId);
       
       if (!status) {
         throw new Error(`Cleaning status for room ID ${roomId} not found`);
@@ -28,7 +24,20 @@ export const useRoomCleaningStatus = (roomId: string) => {
       
       return status;
     },
-    enabled: !!roomId,
+    enabled: !!roomId && !!allStatuses,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+export const useUpdateCleaningStatus = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => 
+      updateCleaningStatus(id, status),
+    onSuccess: () => {
+      // Invalidate the cleaning status queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["cleaningStatus"] });
+    },
   });
 };

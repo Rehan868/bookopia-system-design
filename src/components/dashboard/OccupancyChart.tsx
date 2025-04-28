@@ -1,25 +1,48 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-
-// Mock data for the chart - would come from API in real app
-const data = [
-  { name: 'Jan', occupancy: 65, revenue: 4000 },
-  { name: 'Feb', occupancy: 72, revenue: 4500 },
-  { name: 'Mar', occupancy: 80, revenue: 5000 },
-  { name: 'Apr', occupancy: 75, revenue: 4800 },
-  { name: 'May', occupancy: 85, revenue: 5500 },
-  { name: 'Jun', occupancy: 90, revenue: 6000 },
-  { name: 'Jul', occupancy: 95, revenue: 6500 },
-  { name: 'Aug', occupancy: 88, revenue: 6200 },
-  { name: 'Sep', occupancy: 82, revenue: 5800 },
-  { name: 'Oct', occupancy: 78, revenue: 5200 },
-  { name: 'Nov', occupancy: 70, revenue: 4800 },
-  { name: 'Dec', occupancy: 75, revenue: 5000 },
-];
+import { useOccupancyData } from '@/hooks/useOccupancyData';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function OccupancyChart() {
+  const { data, isLoading, error } = useOccupancyData();
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle>Occupancy & Revenue</CardTitle>
+          <CardDescription>Yearly overview of occupancy rates and revenue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center">
+            <Skeleton className="h-full w-full rounded-md" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle>Occupancy & Revenue</CardTitle>
+          <CardDescription>Yearly overview of occupancy rates and revenue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 flex items-center justify-center text-center">
+            <p className="text-muted-foreground">
+              Unable to load chart data. Please try again later.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
       <CardHeader className="pb-4">

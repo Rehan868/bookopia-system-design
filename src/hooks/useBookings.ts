@@ -1,7 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { Booking } from '@/services/supabase-types';
-import { fetchBookings, fetchBookingById, fetchTodayCheckins, fetchTodayCheckouts } from '@/services/api';
+import { fetchBookings, fetchBookingById, fetchTodayCheckouts } from '@/services/api';
+import { fetchTodayCheckins } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
 
 export function useBookings() {
   const [data, setData] = useState<Booking[] | null>(null);
@@ -59,50 +60,18 @@ export function useBooking(id: string) {
   return { data, isLoading, error };
 }
 
-export function useTodayCheckins() {
-  const [data, setData] = useState<Booking[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
-
-  useEffect(() => {
-    const getCheckins = async () => {
-      try {
-        setIsLoading(true);
-        const checkins = await fetchTodayCheckins();
-        setData(checkins);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    getCheckins();
-  }, []);
-
-  return { data, isLoading, error };
-}
+export const useTodayCheckins = () => {
+  return useQuery({
+    queryKey: ["todayCheckins"],
+    queryFn: fetchTodayCheckins,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
 
 export function useTodayCheckouts() {
-  const [data, setData] = useState<Booking[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
-
-  useEffect(() => {
-    const getCheckouts = async () => {
-      try {
-        setIsLoading(true);
-        const checkouts = await fetchTodayCheckouts();
-        setData(checkouts);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    getCheckouts();
-  }, []);
-
-  return { data, isLoading, error };
+  return useQuery({
+    queryKey: ["todayCheckouts"],
+    queryFn: fetchTodayCheckouts,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 }

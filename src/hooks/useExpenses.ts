@@ -1,15 +1,10 @@
-
-import { expenses } from "@/lib/mock-data";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchExpenses, createExpense, updateExpense, deleteExpense } from "@/services/api";
 
 export const useExpenses = () => {
   return useQuery({
     queryKey: ["expenses"],
-    queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return expenses;
-    },
+    queryFn: fetchExpenses,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
@@ -18,8 +13,7 @@ export const useExpense = (id: string) => {
   return useQuery({
     queryKey: ["expense", id],
     queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const expenses = await fetchExpenses();
       const expense = expenses.find(e => e.id === id);
       
       if (!expense) {
@@ -30,5 +24,39 @@ export const useExpense = (id: string) => {
     },
     enabled: !!id,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+export const useCreateExpense = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    },
+  });
+};
+
+export const useUpdateExpense = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => 
+      updateExpense(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    },
+  });
+};
+
+export const useDeleteExpense = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    },
   });
 };

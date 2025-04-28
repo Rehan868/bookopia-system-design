@@ -1,4 +1,3 @@
-
 export type Room = {
   id: string;
   number: string;
@@ -78,6 +77,11 @@ export type Owner = {
   payment_details: any;
   created_at: string;
   updated_at: string;
+  properties?: number;
+  revenue?: number;
+  occupancy?: number;
+  avatar?: string;
+  joinedDate?: string;
 };
 
 export type Expense = {

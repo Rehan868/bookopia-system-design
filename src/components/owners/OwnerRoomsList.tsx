@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, DoorClosed } from 'lucide-react';
@@ -12,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { rooms, ownerRooms } from '@/lib/mock-data';
+import { useRooms } from '@/hooks/useRooms';
 
 interface OwnerRoomsListProps {
   ownerId: string;
@@ -21,30 +20,16 @@ interface OwnerRoomsListProps {
 
 export const OwnerRoomsList = ({ ownerId, isEditing = false }: OwnerRoomsListProps) => {
   const { toast } = useToast();
-  const [ownerRoomsList, setOwnerRoomsList] = useState(
-    ownerRooms.filter(or => or.ownerId === ownerId)
-  );
+  const { data: rooms, isLoading, error } = useRooms();
 
-  const ownerRoomDetails = ownerRoomsList.map(or => {
-    const room = rooms.find(r => r.id === or.roomId);
-    return {
-      ...or,
-      roomDetails: room
-    };
-  });
+  const ownerRoomsList = rooms?.filter(room => room.owner_id === ownerId) || [];
 
-  const availableRooms = rooms.filter(
-    room => !ownerRooms.some(or => or.roomId === room.id && or.ownerId === ownerId)
-  );
+  const availableRooms = rooms?.filter(
+    room => room.owner_id !== ownerId
+  ) || [];
 
   const handleAddRoom = (roomId: string) => {
-    const newOwnerRoom = {
-      id: `or${Date.now()}`,
-      ownerId,
-      roomId,
-      assignedDate: new Date().toISOString().split('T')[0]
-    };
-    setOwnerRoomsList([...ownerRoomsList, newOwnerRoom]);
+    // Logic to assign room to owner via API
     toast({
       title: "Room Added",
       description: "Room has been successfully assigned to the owner.",
@@ -52,12 +37,20 @@ export const OwnerRoomsList = ({ ownerId, isEditing = false }: OwnerRoomsListPro
   };
 
   const handleDeleteRoom = (roomId: string) => {
-    setOwnerRoomsList(ownerRoomsList.filter(or => or.roomId !== roomId));
+    // Logic to remove room from owner via API
     toast({
       title: "Room Removed",
       description: "Room has been removed from the owner's portfolio.",
     });
   };
+
+  if (isLoading) {
+    return <div>Loading rooms...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading rooms: {error.message}</div>;
+  }
 
   return (
     <Card className="mt-6">
@@ -84,7 +77,7 @@ export const OwnerRoomsList = ({ ownerId, isEditing = false }: OwnerRoomsListPro
         )}
       </CardHeader>
       <CardContent>
-        {ownerRoomDetails.length > 0 ? (
+        {ownerRoomsList.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -96,18 +89,18 @@ export const OwnerRoomsList = ({ ownerId, isEditing = false }: OwnerRoomsListPro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ownerRoomDetails.map((or) => (
-                <TableRow key={or.id}>
-                  <TableCell>{or.roomDetails?.number}</TableCell>
-                  <TableCell>{or.roomDetails?.property}</TableCell>
-                  <TableCell>{or.roomDetails?.type}</TableCell>
-                  <TableCell>{or.roomDetails?.status}</TableCell>
+              {ownerRoomsList.map((room) => (
+                <TableRow key={room.id}>
+                  <TableCell>{room.number}</TableCell>
+                  <TableCell>{room.property}</TableCell>
+                  <TableCell>{room.type}</TableCell>
+                  <TableCell>{room.status}</TableCell>
                   {isEditing && (
                     <TableCell>
                       <Button
                         variant="destructive"
                         size="icon"
-                        onClick={() => handleDeleteRoom(or.roomId)}
+                        onClick={() => handleDeleteRoom(room.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

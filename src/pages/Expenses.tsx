@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Eye, FileEdit, Loader2, Plus, Search, Trash2 } from 'lucide-react';
-import { useExpenses } from '@/hooks/useExpenses';
+import { useExpenses, useDeleteExpense } from '@/hooks/useExpenses';
 import {
   Table,
   TableBody,
@@ -22,6 +22,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Expenses = () => {
   const navigate = useNavigate();
@@ -29,6 +39,9 @@ const Expenses = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const { data: expenses, isLoading, error } = useExpenses();
+  const deleteExpenseMutation = useDeleteExpense();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
   const filteredExpenses = expenses?.filter(expense => {
     const matchesSearch = searchQuery === '' || 
@@ -38,7 +51,24 @@ const Expenses = () => {
     
     const matchesCategory = categoryFilter === 'all' || expense.category.toLowerCase() === categoryFilter.toLowerCase();
     
-    const matchesDate = dateFilter === 'all';
+    // Handle date filtering
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const expenseDate = new Date(expense.date);
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      
+      if (dateFilter === 'this-month') {
+        matchesDate = expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
+      } else if (dateFilter === 'last-month') {
+        const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+        const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+        matchesDate = expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
+      } else if (dateFilter === 'this-year') {
+        matchesDate = expenseDate.getFullYear() === thisYear;
+      }
+    }
     
     return matchesSearch && matchesCategory && matchesDate;
   });
@@ -55,8 +85,29 @@ const Expenses = () => {
     navigate(`/expenses/edit/${id}`);
   };
 
-  const handleDeleteExpense = (id: string) => {
-    toast.success("Expense deleted successfully");
+  const handleDeleteClick = (id: string) => {
+    setExpenseToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!expenseToDelete) return;
+    
+    try {
+      await deleteExpenseMutation.mutateAsync(expenseToDelete);
+      toast.success("Expense deleted successfully");
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      toast.error("Failed to delete expense");
+    } finally {
+      setDeleteDialogOpen(false);
+      setExpenseToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setExpenseToDelete(null);
   };
 
   const getCategoryBadge = (category: string) => {
@@ -125,10 +176,12 @@ const Expenses = () => {
         </div>
       </Card>
 
-      {isLoading ? (
+      {isLoading || deleteExpenseMutation.isPending ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading expenses...</span>
+          <span className="ml-2">
+            {deleteExpenseMutation.isPending ? "Deleting expense..." : "Loading expenses..."}
+          </span>
         </div>
       ) : error ? (
         <div className="text-center p-8 border rounded-lg bg-red-50">
@@ -191,7 +244,7 @@ const Expenses = () => {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          onClick={() => handleDeleteExpense(expense.id)}
+                          onClick={() => handleDeleteClick(expense.id)}
                           title="Delete expense"
                           className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
@@ -212,6 +265,23 @@ const Expenses = () => {
           </Table>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this expense? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search, RotateCw, CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -23,11 +22,14 @@ import {
 } from "@/components/ui/table";
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useCleaningStatus, useUpdateCleaningStatus } from '@/hooks/useCleaningStatus';
+import { format } from 'date-fns';
 
 type CleaningStatus = 'Clean' | 'Dirty' | 'In Progress';
 
 interface Room {
-  id: number;
+  id: string;
+  roomId: string;
   roomNumber: string;
   property: string;
   status: CleaningStatus;
@@ -35,28 +37,29 @@ interface Room {
   nextCheckIn: string | null;
 }
 
-const CleaningStatus = () => {
+const CleaningStatusPage = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Sample data - in a real app this would come from a database
-  const [allRooms, setAllRooms] = useState<Room[]>([
-    { id: 1, roomNumber: '101', property: 'Marina Tower', status: 'Clean', lastCleaned: '2023-11-15 14:30', nextCheckIn: '2023-11-16 15:00' },
-    { id: 2, roomNumber: '102', property: 'Marina Tower', status: 'Dirty', lastCleaned: '2023-11-14 10:15', nextCheckIn: '2023-11-17 14:00' },
-    { id: 3, roomNumber: '201', property: 'Marina Tower', status: 'In Progress', lastCleaned: null, nextCheckIn: '2023-11-16 16:00' },
-    { id: 4, roomNumber: '301', property: 'Downtown Heights', status: 'Clean', lastCleaned: '2023-11-15 12:45', nextCheckIn: null },
-    { id: 5, roomNumber: '302', property: 'Downtown Heights', status: 'Dirty', lastCleaned: '2023-11-13 09:30', nextCheckIn: '2023-11-18 13:00' },
-    { id: 6, roomNumber: '401', property: 'Downtown Heights', status: 'Clean', lastCleaned: '2023-11-15 15:20', nextCheckIn: '2023-11-17 15:00' },
-  ]);
+  // Fetch cleaning statuses from the database
+  const { data: cleaningStatuses, isLoading, error } = useCleaningStatus();
+  const updateStatusMutation = useUpdateCleaningStatus();
   
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || "");
   const [propertyFilter, setPropertyFilter] = useState<string>(searchParams.get('property') || "all");
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || "all");
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>(allRooms);
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
+  
+  // Extract unique properties for the property filter
+  const properties = cleaningStatuses 
+    ? [...new Set(cleaningStatuses.map(room => room.property))]
+    : [];
 
-  // Apply filters when filter values change
+  // Apply filters when filter values or data change
   useEffect(() => {
-    let filtered = allRooms;
+    if (!cleaningStatuses) return;
+    
+    let filtered = cleaningStatuses;
     
     // Apply search filter
     if (searchQuery) {
@@ -67,14 +70,7 @@ const CleaningStatus = () => {
     
     // Apply property filter
     if (propertyFilter !== 'all') {
-      filtered = filtered.filter(room => {
-        if (propertyFilter === 'marina') {
-          return room.property === 'Marina Tower';
-        } else if (propertyFilter === 'downtown') {
-          return room.property === 'Downtown Heights';
-        }
-        return true;
-      });
+      filtered = filtered.filter(room => room.property === propertyFilter);
     }
     
     // Apply status filter
@@ -100,22 +96,22 @@ const CleaningStatus = () => {
     if (statusFilter !== 'all') params.set('status', statusFilter);
     
     setSearchParams(params, { replace: true });
-  }, [searchQuery, propertyFilter, statusFilter, allRooms]);
+  }, [searchQuery, propertyFilter, statusFilter, cleaningStatuses]);
 
-  const updateStatus = (roomId: number, newStatus: CleaningStatus) => {
-    setAllRooms(allRooms.map(room => 
-      room.id === roomId 
-        ? { 
-            ...room, 
-            status: newStatus, 
-            lastCleaned: newStatus === 'Clean' ? new Date().toISOString().replace('T', ' ').substring(0, 16) : room.lastCleaned 
-          } 
-        : room
-    ));
-    
-    toast({
-      description: `Room ${allRooms.find(room => room.id === roomId)?.roomNumber} marked as ${newStatus}`,
-    });
+  const updateStatus = async (roomId: string, newStatus: CleaningStatus) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id: roomId, status: newStatus });
+      
+      toast({
+        description: `Room ${filteredRooms.find(room => room.id === roomId)?.roomNumber} marked as ${newStatus}`,
+      });
+    } catch (error) {
+      console.error("Error updating room status:", error);
+      toast({
+        variant: "destructive",
+        description: "Failed to update room status. Please try again.",
+      });
+    }
   };
 
   const getStatusIcon = (status: CleaningStatus) => {
@@ -157,9 +153,31 @@ const CleaningStatus = () => {
     });
   };
 
+  // Format date-time string for display
+  const formatDateTime = (dateTime: string | null) => {
+    if (!dateTime) return null;
+    try {
+      return format(new Date(dateTime), 'yyyy-MM-dd HH:mm');
+    } catch (e) {
+      return dateTime;
+    }
+  };
+
   const cleanCount = filteredRooms.filter(room => room.status === 'Clean').length;
   const dirtyCount = filteredRooms.filter(room => room.status === 'Dirty').length;
   const inProgressCount = filteredRooms.filter(room => room.status === 'In Progress').length;
+
+  if (isLoading) {
+    return <div className="p-8 text-center">Loading cleaning status data...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center text-red-500">
+        Error loading cleaning status data. Please refresh the page to try again.
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">
@@ -203,8 +221,9 @@ const CleaningStatus = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Properties</SelectItem>
-              <SelectItem value="marina">Marina Tower</SelectItem>
-              <SelectItem value="downtown">Downtown Heights</SelectItem>
+              {properties.map(property => (
+                <SelectItem key={property} value={property}>{property}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           
@@ -258,8 +277,8 @@ const CleaningStatus = () => {
                       {getStatusBadge(room.status)}
                     </div>
                   </TableCell>
-                  <TableCell>{room.lastCleaned || 'Not yet cleaned'}</TableCell>
-                  <TableCell>{room.nextCheckIn || 'No upcoming check-in'}</TableCell>
+                  <TableCell>{formatDateTime(room.lastCleaned) || 'Not yet cleaned'}</TableCell>
+                  <TableCell>{formatDateTime(room.nextCheckIn) || 'No upcoming check-in'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       {room.status !== 'Clean' && (
@@ -268,6 +287,7 @@ const CleaningStatus = () => {
                           variant="outline" 
                           className="text-green-600" 
                           onClick={() => updateStatus(room.id, 'Clean')}
+                          disabled={updateStatusMutation.isPending}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Mark Clean
@@ -279,6 +299,7 @@ const CleaningStatus = () => {
                           variant="outline" 
                           className="text-yellow-600" 
                           onClick={() => updateStatus(room.id, 'In Progress')}
+                          disabled={updateStatusMutation.isPending}
                         >
                           <RotateCw className="h-4 w-4 mr-1" />
                           Start Cleaning
@@ -290,6 +311,7 @@ const CleaningStatus = () => {
                           variant="outline" 
                           className="text-red-600" 
                           onClick={() => updateStatus(room.id, 'Dirty')}
+                          disabled={updateStatusMutation.isPending}
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Mark Dirty
@@ -313,4 +335,4 @@ const CleaningStatus = () => {
   );
 };
 
-export default CleaningStatus;
+export default CleaningStatusPage;

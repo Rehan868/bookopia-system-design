@@ -1,85 +1,115 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarClock, Clock, User } from 'lucide-react';
+import { CalendarClock, User } from 'lucide-react';
+import { useRecentBookings } from '@/hooks/useRecentBookings';
+import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface BookingData {
-  id: string;
-  guestName: string;
-  roomName: string;
-  checkIn: string;
-  checkOut: string;
-  status: 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
-  createdAt: string;
-}
-
-// Mock data - would come from API in real app
-const bookings: BookingData[] = [
-  {
-    id: 'B1001',
-    guestName: 'John Smith',
-    roomName: 'Deluxe Suite 101',
-    checkIn: '2023-06-15',
-    checkOut: '2023-06-18',
-    status: 'confirmed',
-    createdAt: '2023-06-01T10:30:00'
-  },
-  {
-    id: 'B1002',
-    guestName: 'Emma Johnson',
-    roomName: 'Executive Room 205',
-    checkIn: '2023-06-14',
-    checkOut: '2023-06-16',
-    status: 'checked-in',
-    createdAt: '2023-06-10T14:45:00'
-  },
-  {
-    id: 'B1003',
-    guestName: 'Michael Chen',
-    roomName: 'Standard Room 304',
-    checkIn: '2023-06-12',
-    checkOut: '2023-06-13',
-    status: 'checked-out',
-    createdAt: '2023-06-08T09:15:00'
-  },
-  {
-    id: 'B1004',
-    guestName: 'Sarah Davis',
-    roomName: 'Deluxe Suite 102',
-    checkIn: '2023-06-18',
-    checkOut: '2023-06-20',
-    status: 'confirmed',
-    createdAt: '2023-06-11T16:20:00'
+// Helper function to format dates nicely
+const formatDate = (dateString: string) => {
+  try {
+    return format(new Date(dateString), 'MMM d, yyyy');
+  } catch (e) {
+    return dateString;
   }
-];
+};
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-}
-
-function getStatusColor(status: string) {
+// Function to get appropriate styling based on booking status
+const getStatusColor = (status: string) => {
   switch (status) {
     case 'confirmed':
-      return 'bg-blue-100 text-blue-800';
-    case 'checked-in':
-      return 'bg-green-100 text-green-800';
-    case 'checked-out':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-green-50 border-green-200 text-green-700';
+    case 'pending':
+      return 'bg-yellow-50 border-yellow-200 text-yellow-700';
     case 'cancelled':
-      return 'bg-red-100 text-red-800';
+      return 'bg-red-50 border-red-200 text-red-700';
+    case 'checked-in':
+      return 'bg-blue-50 border-blue-200 text-blue-700';
+    case 'checked-out':
+      return 'bg-gray-50 border-gray-200 text-gray-700';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-gray-50 border-gray-200 text-gray-700';
   }
-}
+};
 
 export function RecentBookings() {
+  const { data: bookings, isLoading, error } = useRecentBookings(5);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle>Recent Bookings</CardTitle>
+          <CardDescription>Latest booking activity across all properties</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border-b border-border last:border-0 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Skeleton className="h-5 w-40 mb-2" />
+                    <Skeleton className="h-4 w-60 mb-2" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-9 w-20" />
+                    <Skeleton className="h-9 w-20" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle>Recent Bookings</CardTitle>
+          <CardDescription>Latest booking activity across all properties</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6 text-muted-foreground">
+            <p>Error loading recent bookings</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Empty state
+  if (!bookings || bookings.length === 0) {
+    return (
+      <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle>Recent Bookings</CardTitle>
+          <CardDescription>Latest booking activity across all properties</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6 text-muted-foreground">
+            <p>No recent bookings found</p>
+            <Link to="/bookings/new">
+              <Button size="sm" className="mt-2">Create Booking</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
       <CardHeader className="pb-4">
@@ -92,7 +122,7 @@ export function RecentBookings() {
             <div key={booking.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{booking.guestName}</span>
+                  <span className="font-medium">{booking.guest_name}</span>
                   <Badge className={cn("text-xs font-normal", getStatusColor(booking.status))}>
                     {booking.status.replace('-', ' ')}
                   </Badge>
@@ -100,25 +130,31 @@ export function RecentBookings() {
                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <User className="h-3.5 w-3.5" />
-                    <span>{booking.roomName}</span>
+                    <span>{booking.room_number}, {booking.property}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <CalendarClock className="h-3.5 w-3.5" />
-                    <span>{formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}</span>
+                    <span>{formatDate(booking.check_in)} - {formatDate(booking.check_out)}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">Details</Button>
+                <Link to={`/bookings/${booking.id}`}>
+                  <Button variant="outline" size="sm">Details</Button>
+                </Link>
                 {booking.status === 'confirmed' && (
-                  <Button size="sm">Check In</Button>
+                  <Link to={`/bookings/${booking.id}?action=check-in`}>
+                    <Button size="sm">Check In</Button>
+                  </Link>
                 )}
               </div>
             </div>
           ))}
           
           <div className="flex justify-center mt-2">
-            <Button variant="outline" className="w-full">View All Bookings</Button>
+            <Link to="/bookings">
+              <Button variant="outline" className="w-full">View All Bookings</Button>
+            </Link>
           </div>
         </div>
       </CardContent>

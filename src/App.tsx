@@ -53,6 +53,7 @@ import EmailTemplateEdit from "./pages/EmailTemplateEdit";
 import SmsTemplates from "./pages/SmsTemplates";
 import SmsTemplateAdd from "./pages/SmsTemplateAdd";
 import SmsTemplateEdit from "./pages/SmsTemplateEdit";
+import AddUserRole from "./pages/AddUserRole";
 
 const queryClient = new QueryClient();
 
@@ -162,6 +163,7 @@ const App = () => (
               <Route path="settings/sms-templates" element={<SmsTemplates />} />
               <Route path="settings/sms-templates/new" element={<SmsTemplateAdd />} />
               <Route path="settings/sms-templates/edit/:id" element={<SmsTemplateEdit />} />
+              <Route path="/AddUserRole" element={<AddUserRole />} />
             </Route>
             
             <Route path="/owner" element={

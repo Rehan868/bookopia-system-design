@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useOwners } from '@/hooks/useOwners';
 
 interface Owner {
   id: number;
@@ -41,67 +41,32 @@ interface Owner {
 const Owners = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  // Sample data - in a real app this would come from a database
-  const owners: Owner[] = [
-    { 
-      id: 1, 
-      name: 'David Miller', 
-      email: 'david@example.com', 
-      properties: 3, 
-      revenue: 45000, 
-      occupancy: 78,
-      avatar: null 
-    },
-    { 
-      id: 2, 
-      name: 'Emma Wilson', 
-      email: 'emma@example.com', 
-      properties: 2, 
-      revenue: 33000, 
-      occupancy: 65,
-      avatar: null 
-    },
-    { 
-      id: 3, 
-      name: 'James Taylor', 
-      email: 'james@example.com', 
-      properties: 5, 
-      revenue: 87000, 
-      occupancy: 82,
-      avatar: null 
-    },
-    { 
-      id: 4, 
-      name: 'Sophia Garcia', 
-      email: 'sophia@example.com', 
-      properties: 1, 
-      revenue: 15000, 
-      occupancy: 72,
-      avatar: null 
-    },
-  ];
-  
+  const { data: owners, isLoading, error } = useOwners();
+
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || "");
-  const [filteredOwners, setFilteredOwners] = useState<Owner[]>(owners);
-  
-  // Apply filters when search value changes
+  const [filteredOwners, setFilteredOwners] = useState<Owner[]>(owners || []);
+
   useEffect(() => {
-    if (searchQuery) {
+    if (owners) {
+      setFilteredOwners(owners);
+    }
+  }, [owners]);
+
+  useEffect(() => {
+    if (searchQuery && owners) {
       const filtered = owners.filter(owner => 
         owner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         owner.email.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredOwners(filtered);
-    } else {
+    } else if (owners) {
       setFilteredOwners(owners);
     }
     
-    // Update URL with search parameter
     const params = new URLSearchParams();
     if (searchQuery) params.set('q', searchQuery);
     setSearchParams(params, { replace: true });
-  }, [searchQuery]);
+  }, [searchQuery, owners]);
 
   const getInitials = (name: string) => {
     return name
@@ -128,13 +93,20 @@ const Owners = () => {
   };
   
   const handleDeleteOwner = (ownerId: number) => {
-    // In a real app, this would call an API to delete the owner
     toast({
       title: "Owner Deleted",
       description: `Owner ID ${ownerId} has been removed.`,
       variant: "destructive"
     });
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error loading owners: {error.message}</div>;
+  }
 
   return (
     <div className="animate-fade-in">
@@ -158,7 +130,7 @@ const Owners = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{owners.length}</div>
+              <div className="text-2xl font-bold">{owners?.length || 0}</div>
               <div className="p-2 bg-primary/10 rounded-full text-primary">
                 <Building className="h-5 w-5" />
               </div>
@@ -172,7 +144,7 @@ const Owners = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{owners.reduce((acc, owner) => acc + owner.properties, 0)}</div>
+              <div className="text-2xl font-bold">{owners?.reduce((acc, owner) => acc + owner.properties, 0) || 0}</div>
               <div className="p-2 bg-primary/10 rounded-full text-primary">
                 <Building className="h-5 w-5" />
               </div>
@@ -186,7 +158,7 @@ const Owners = () => {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{formatCurrency(owners.reduce((acc, owner) => acc + owner.revenue, 0))}</div>
+              <div className="text-2xl font-bold">{formatCurrency(owners?.reduce((acc, owner) => acc + owner.revenue, 0) || 0)}</div>
               <div className="p-2 bg-primary/10 rounded-full text-primary">
                 <DollarSign className="h-5 w-5" />
               </div>

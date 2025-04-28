@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,10 +26,14 @@ import {
   Globe,
   Lock,
   Mail,
+  Plus,
   Save,
   User,
   Users
 } from 'lucide-react';
+import UserRoleManagement from '@/components/settings/UserRoleManagement';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { fetchProperties, fetchRoomTypes } from '@/services/api';
 
 const Settings = () => {
   const { toast } = useToast();
@@ -49,6 +52,58 @@ const Settings = () => {
   const [defaultCheckOutTime, setDefaultCheckOutTime] = useState('11:00');
   const [taxRate, setTaxRate] = useState('7.5');
   const [reminderDays, setReminderDays] = useState('1');
+
+  // State for managing dialogs
+  const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+  const [isRoomTypeDialogOpen, setIsRoomTypeDialogOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState(null);
+  const [editingRoomType, setEditingRoomType] = useState(null);
+
+  const [properties, setProperties] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+
+  useEffect(() => {
+    const loadProperties = async () => {
+      try {
+        const data = await fetchProperties();
+        setProperties(data);
+      } catch (error) {
+        console.error('Error loading properties:', error);
+      }
+    };
+
+    const loadRoomTypes = async () => {
+      try {
+        const data = await fetchRoomTypes();
+        setRoomTypes(data);
+      } catch (error) {
+        console.error('Error loading room types:', error);
+      }
+    };
+
+    loadProperties();
+    loadRoomTypes();
+  }, []);
+
+  const handleAddProperty = () => {
+    setEditingProperty(null);
+    setIsPropertyDialogOpen(true);
+  };
+
+  const handleEditProperty = (property) => {
+    setEditingProperty(property);
+    setIsPropertyDialogOpen(true);
+  };
+
+  const handleAddRoomType = () => {
+    setEditingRoomType(null);
+    setIsRoomTypeDialogOpen(true);
+  };
+
+  const handleEditRoomType = (roomType) => {
+    setEditingRoomType(roomType);
+    setIsRoomTypeDialogOpen(true);
+  };
   
   const handleSaveGeneral = () => {
     toast({
@@ -378,162 +433,105 @@ const Settings = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-t">
-                        <td className="p-3 font-medium">Marina Tower</td>
-                        <td className="p-3">123 Oceanfront Dr, Miami, FL</td>
-                        <td className="p-3">12</td>
-                        <td className="p-3 text-right">
-                          <Button size="sm" variant="ghost">Edit</Button>
-                        </td>
-                      </tr>
-                      <tr className="border-t">
-                        <td className="p-3 font-medium">Downtown Heights</td>
-                        <td className="p-3">456 Urban Ave, Miami, FL</td>
-                        <td className="p-3">8</td>
-                        <td className="p-3 text-right">
-                          <Button size="sm" variant="ghost">Edit</Button>
-                        </td>
-                      </tr>
+                      {properties.map((property) => (
+                        <tr key={property.id} className="border-t">
+                          <td className="p-3 font-medium">{property.name}</td>
+                          <td className="p-3">{property.address}</td>
+                          <td className="p-3">{property.rooms}</td>
+                          <td className="p-3 text-right">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditProperty(property)}>Edit</Button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
                 
-                <Button>Add New Property</Button>
+                <Button onClick={handleAddProperty}>Add New Property</Button>
               </div>
               
               <Separator />
               
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Property Settings</h3>
+                <h3 className="text-lg font-medium">Room Types & Pricing</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="default-property">Default Property</Label>
-                    <Select defaultValue="marina">
-                      <SelectTrigger id="default-property">
-                        <SelectValue placeholder="Select default property" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="marina">Marina Tower</SelectItem>
-                        <SelectItem value="downtown">Downtown Heights</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-muted-foreground">
-                      This property will be selected by default when creating new bookings
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Property Timezone</Label>
-                    <Select defaultValue="est">
-                      <SelectTrigger id="timezone">
-                        <SelectValue placeholder="Select timezone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="est">Eastern Time (ET)</SelectItem>
-                        <SelectItem value="cst">Central Time (CT)</SelectItem>
-                        <SelectItem value="mst">Mountain Time (MT)</SelectItem>
-                        <SelectItem value="pst">Pacific Time (PT)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left font-medium p-3">Room Type</th>
+                        <th className="text-left font-medium p-3">Base Rate</th>
+                        <th className="text-left font-medium p-3">Max Occupancy</th>
+                        <th className="text-right font-medium p-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roomTypes.map((roomType, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-3 font-medium">{roomType.type}</td>
+                          <td className="p-3">${roomType.rate}</td>
+                          <td className="p-3">{roomType.capacity}</td>
+                          <td className="p-3 text-right">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditRoomType(roomType)}>Edit</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="property-notes">Property Notes</Label>
-                  <Textarea 
-                    id="property-notes" 
-                    placeholder="Enter any special instructions or notes for this property"
-                    rows={4}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="show-on-booking">Show on Booking Sites</Label>
-                    <Switch id="show-on-booking" defaultChecked />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Enable this to make your properties visible on connected booking platforms
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-            <div className="px-6 py-4 flex justify-end gap-4 border-t">
-              <Button variant="outline">Cancel</Button>
-              <Button onClick={handleSaveProperty} className="flex items-center gap-2">
-                <Save className="h-4 w-4" />
-                Save Property Settings
-              </Button>
-            </div>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Room Types & Pricing</CardTitle>
-              <CardDescription>
-                Manage room categories and rate plans
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-md border overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left font-medium p-3">Room Type</th>
-                      <th className="text-left font-medium p-3">Base Rate</th>
-                      <th className="text-left font-medium p-3">Max Occupancy</th>
-                      <th className="text-right font-medium p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t">
-                      <td className="p-3 font-medium">Standard Room</td>
-                      <td className="p-3">$120</td>
-                      <td className="p-3">2</td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-3 font-medium">Deluxe Suite</td>
-                      <td className="p-3">$180</td>
-                      <td className="p-3">3</td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-3 font-medium">Executive Suite</td>
-                      <td className="p-3">$250</td>
-                      <td className="p-3">4</td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-3 font-medium">Penthouse Suite</td>
-                      <td className="p-3">$400</td>
-                      <td className="p-3">4</td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button>Add Room Type</Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <BadgePercent className="h-4 w-4" />
-                  Manage Rate Plans
-                </Button>
+                <Button onClick={handleAddRoomType}>Add Room Type</Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-        
+
+        {/* Property Dialog */}
+        <Dialog open={isPropertyDialogOpen} onOpenChange={setIsPropertyDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingProperty ? 'Edit Property' : 'Add Property'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label htmlFor="property-name">Property Name</Label>
+              <Input id="property-name" defaultValue={editingProperty?.name || ''} />
+
+              <Label htmlFor="property-address">Address</Label>
+              <Input id="property-address" defaultValue={editingProperty?.address || ''} />
+
+              <Label htmlFor="property-rooms">Number of Rooms</Label>
+              <Input id="property-rooms" type="number" defaultValue={editingProperty?.rooms || ''} />
+            </div>
+            <div className="flex justify-end gap-4 mt-4">
+              <Button variant="outline" onClick={() => setIsPropertyDialogOpen(false)}>Cancel</Button>
+              <Button>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Room Type Dialog */}
+        <Dialog open={isRoomTypeDialogOpen} onOpenChange={setIsRoomTypeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingRoomType ? 'Edit Room Type' : 'Add Room Type'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label htmlFor="room-type">Room Type</Label>
+              <Input id="room-type" defaultValue={editingRoomType?.type || ''} />
+
+              <Label htmlFor="base-rate">Base Rate</Label>
+              <Input id="base-rate" type="number" defaultValue={editingRoomType?.rate || ''} />
+
+              <Label htmlFor="max-occupancy">Max Occupancy</Label>
+              <Input id="max-occupancy" type="number" defaultValue={editingRoomType?.occupancy || ''} />
+            </div>
+            <div className="flex justify-end gap-4 mt-4">
+              <Button variant="outline" onClick={() => setIsRoomTypeDialogOpen(false)}>Cancel</Button>
+              <Button>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
@@ -748,166 +746,7 @@ const Settings = () => {
         </TabsContent>
         
         <TabsContent value="users" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                Manage user accounts and access permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-md border overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left font-medium p-3">Name</th>
-                      <th className="text-left font-medium p-3">Email</th>
-                      <th className="text-left font-medium p-3">Role</th>
-                      <th className="text-left font-medium p-3">Status</th>
-                      <th className="text-right font-medium p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t">
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <User className="h-4 w-4" />
-                          </div>
-                          <span className="font-medium">John Doe</span>
-                        </div>
-                      </td>
-                      <td className="p-3">john@example.com</td>
-                      <td className="p-3">Administrator</td>
-                      <td className="p-3">
-                        <Badge className="bg-green-100 text-green-800">Active</Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <User className="h-4 w-4" />
-                          </div>
-                          <span className="font-medium">Jane Smith</span>
-                        </div>
-                      </td>
-                      <td className="p-3">jane@example.com</td>
-                      <td className="p-3">Manager</td>
-                      <td className="p-3">
-                        <Badge className="bg-green-100 text-green-800">Active</Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <User className="h-4 w-4" />
-                          </div>
-                          <span className="font-medium">Robert Wilson</span>
-                        </div>
-                      </td>
-                      <td className="p-3">robert@example.com</td>
-                      <td className="p-3">Staff</td>
-                      <td className="p-3">
-                        <Badge className="bg-red-100 text-red-800">Inactive</Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              
-              <Button>Add New User</Button>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Permissions</CardTitle>
-              <CardDescription>
-                Configure access levels for each user role
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Administrator</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Full Access</Label>
-                    <Switch checked disabled />
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <h3 className="text-lg font-medium">Manager</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Manage Bookings</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Manage Rooms</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>View Reports</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Manage Staff</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>System Settings</Label>
-                    <Switch />
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <h3 className="text-lg font-medium">Staff</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>View Bookings</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Create Bookings</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Check In/Out</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>View Rooms</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between border rounded-md p-3">
-                    <Label>Edit Rooms</Label>
-                    <Switch />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <div className="px-6 py-4 flex justify-end gap-4 border-t">
-              <Button variant="outline">Cancel</Button>
-              <Button onClick={handleSaveUsers} className="flex items-center gap-2">
-                <Save className="h-4 w-4" />
-                Save User Settings
-              </Button>
-            </div>
-          </Card>
+          <UserRoleManagement />
         </TabsContent>
       </Tabs>
     </div>

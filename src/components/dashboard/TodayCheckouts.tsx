@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUpFromLine, User } from 'lucide-react';
@@ -57,7 +56,7 @@ export function TodayCheckouts() {
     return (
       <div className="divide-y">
         {checkouts.map((checkout) => (
-          <div key={checkout.id} className="flex items-center justify-between p-3">
+          <div key={checkout.id} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
                 <User className="h-4 w-4" />

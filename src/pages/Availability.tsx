@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarClock, ChevronLeft, ChevronRight, PlusCircle, RefreshCw, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { fetchRoomAvailability } from '@/services/api';
 
 interface RoomBooking {
   id: string;
@@ -28,113 +28,6 @@ interface Room {
   status: 'available' | 'occupied' | 'maintenance';
   bookings: RoomBooking[];
 }
-
-// Mock data
-const roomsData: Room[] = [
-  {
-    id: '1',
-    number: '101',
-    property: 'Marina Tower',
-    type: 'Deluxe Suite',
-    status: 'available',
-    bookings: [
-      {
-        id: 'b1',
-        guestName: 'John Smith',
-        startDate: new Date('2023-11-15'),
-        endDate: new Date('2023-11-18'),
-        status: 'confirmed'
-      },
-      {
-        id: 'b2',
-        guestName: 'Emma Johnson',
-        startDate: new Date('2023-11-20'),
-        endDate: new Date('2023-11-25'),
-        status: 'confirmed'
-      }
-    ]
-  },
-  {
-    id: '2',
-    number: '102',
-    property: 'Marina Tower',
-    type: 'Standard Room',
-    status: 'occupied',
-    bookings: [
-      {
-        id: 'b3',
-        guestName: 'Michael Chen',
-        startDate: new Date('2023-11-12'),
-        endDate: new Date('2023-11-17'),
-        status: 'checked-in'
-      }
-    ]
-  },
-  {
-    id: '3',
-    number: '201',
-    property: 'Downtown Heights',
-    type: 'Executive Suite',
-    status: 'maintenance',
-    bookings: []
-  },
-  {
-    id: '4',
-    number: '202',
-    property: 'Downtown Heights',
-    type: 'Standard Room',
-    status: 'available',
-    bookings: [
-      {
-        id: 'b4',
-        guestName: 'Sarah Davis',
-        startDate: new Date('2023-11-18'),
-        endDate: new Date('2023-11-20'),
-        status: 'confirmed'
-      }
-    ]
-  },
-  {
-    id: '5',
-    number: '301',
-    property: 'Marina Tower',
-    type: 'Deluxe Suite',
-    status: 'occupied',
-    bookings: [
-      {
-        id: 'b5',
-        guestName: 'Robert Wilson',
-        startDate: new Date('2023-11-14'),
-        endDate: new Date('2023-11-19'),
-        status: 'checked-in'
-      }
-    ]
-  },
-  {
-    id: '6',
-    number: '302',
-    property: 'Marina Tower',
-    type: 'Standard Room',
-    status: 'available',
-    bookings: [
-      {
-        id: 'b6',
-        guestName: 'Lisa Brown',
-        startDate: new Date('2023-11-22'),
-        endDate: new Date('2023-11-25'),
-        status: 'confirmed'
-      }
-    ]
-  },
-  {
-    id: '7',
-    number: '401',
-    property: 'Downtown Heights',
-    type: 'Penthouse Suite',
-    status: 'available',
-    bookings: []
-  }
-];
 
 // Generate array of dates for the calendar view
 const generateDates = (startDate: Date, days: number) => {
@@ -183,41 +76,32 @@ const Availability = () => {
   const [roomStatus, setRoomStatus] = useState<string | undefined>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [filteredRooms, setFilteredRooms] = useState<Room[]>(roomsData);
+  const [filteredRooms, setFilteredRooms] = useState<Room[]>([]);
   
   const calendarDates = generateDates(viewStartDate, displayDays);
 
-  // Apply filters when any filter changes
+  // Fetch room availability data from Supabase
   useEffect(() => {
-    let result = roomsData;
-    
-    // Property filter
-    if (property && property !== "all") {
-      result = result.filter(room => room.property === property);
-    }
-    
-    // Room type filter
-    if (roomType && roomType !== "all") {
-      result = result.filter(room => room.type === roomType);
-    }
-    
-    // Room status filter
-    if (roomStatus && roomStatus !== "all") {
-      result = result.filter(room => room.status === roomStatus);
-    }
-    
-    // Search query filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(room => 
-        room.number.toLowerCase().includes(query) || 
-        room.property.toLowerCase().includes(query) ||
-        room.bookings.some(booking => booking.guestName.toLowerCase().includes(query))
-      );
-    }
-    
-    setFilteredRooms(result);
-  }, [property, roomType, roomStatus, searchQuery]);
+    const fetchData = async () => {
+      try {
+        const startDate = viewStartDate.toISOString().split('T')[0];
+        const endDate = new Date(viewStartDate);
+        endDate.setDate(endDate.getDate() + displayDays);
+        const endDateString = endDate.toISOString().split('T')[0];
+
+        const data = await fetchRoomAvailability(startDate, endDateString);
+        const transformedData = data.map((room: any) => ({
+          ...room,
+          status: room.bookedDates.length > 0 ? 'occupied' : 'available', // Example logic to determine status
+        }));
+        setFilteredRooms(transformedData);
+      } catch (error) {
+        console.error('Error fetching room availability:', error);
+      }
+    };
+
+    fetchData();
+  }, [viewStartDate, displayDays]);
   
   const moveCalendar = (direction: 'prev' | 'next') => {
     const newDate = new Date(viewStartDate);
