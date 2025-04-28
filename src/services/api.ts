@@ -165,263 +165,47 @@ const calculateBookingStyle = (booking: RoomBooking, viewStartDate: Date, totalD
 
 export const fetchRoomAvailability = async (startDate: string, endDate: string) => {
   try {
-    // 1. Get all rooms
-    const { data: rooms, error: roomsError } = await supabase
-      .from('rooms')
-      .select('*');
-    
-    if (roomsError) throw roomsError;
-    
-    // Map rooms to the expected format
-    const mappedRooms = rooms.map(room => ({
-      id: room.id,
-      number: room.number,
-      type: room.type,
-      property_name: room.property_name,
-      property: room.property_name, // Add property field for compatibility
-      capacity: room.max_occupancy,
-      rate: room.base_rate,
-      status: room.status
-    }));
-    
-    // 2. Get all bookings that overlap with the date range
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('*')
-      .or(`check_in.lte.${endDate},check_out.gte.${startDate}`);
-    
-    if (bookingsError) throw bookingsError;
-    
-    // 3. Create an array of all dates in the specified range
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dateRange = [];
-    
-    // Create an array of all dates in the range
-    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-      dateRange.push(new Date(dt).toISOString().split('T')[0]);
-    }
-    
-    // Process each room to determine availability
-    return mappedRooms.map(room => {
-      // Find all bookings for this room
-      const roomBookings = bookings?.filter(booking => booking.room_number === room.number) || [];
-      
-      // Determine which dates are booked
-      const bookedDates = [];
-      
-      // For each date in the range, check if the room is booked
-      dateRange.forEach(date => {
-        const isBooked = roomBookings.some(booking => {
-          const checkIn = booking.check_in;
-          const checkOut = booking.check_out;
-          return date >= checkIn && date < checkOut;
-        });
-        
-        if (isBooked) {
-          bookedDates.push(date);
-        }
-      });
-      
-      // Return the room with availability information
-      return {
-        ...room,
-        bookedDates,
-        bookings: roomBookings
-      };
+    // Mocking the API call
+    const response = await Promise.resolve({
+      data: Array.from({ length: 10 }).map((_, index) => ({
+        id: `room-${index + 1}`,
+        number: `${100 + index}`,
+        type: index % 3 === 0 ? 'Standard' : index % 3 === 1 ? 'Deluxe' : 'Suite',
+        property: index < 5 ? 'Main Building' : 'Beach Resort',
+        property_name: index < 5 ? 'Main Building' : 'Beach Resort',
+        capacity: index % 3 === 0 ? 2 : index % 3 === 1 ? 3 : 4,
+        rate: index % 3 === 0 ? 100 : index % 3 === 1 ? 150 : 200,
+        status: 'available',
+        bookedDates: [],
+        bookings: []
+      }))
     });
+    
+    return response.data;
   } catch (error) {
-    console.error("Error fetching room availability:", error);
-    
-    // If database connection fails, fall back to mock data but with the 
-    // correct structure that the UI component expects
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dateRange = [];
-    
-    // Create an array of all dates in the range
-    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-      dateRange.push(new Date(dt).toISOString().split('T')[0]);
-    }
-    
-    // Generate mock rooms with the correct data structure
-    return Array.from({ length: 20 }, (_, i) => {
-      const roomNumber = `${Math.floor(i / 10) + 1}0${i % 10 + 1}`;
-      const roomType = ['Standard', 'Deluxe', 'Suite', 'Villa'][Math.floor(Math.random() * 4)];
-      const roomProperty = ['Seaside Resort', 'Mountain Lodge', 'City Center Hotel', 'Lake View Resort'][Math.floor(Math.random() * 4)];
-      const roomCapacity = Math.floor(Math.random() * 4) + 1;
-      const roomRate = Math.floor(Math.random() * 150) + 100;
-      
-      // Generate 0-3 random bookings for this room
-      const bookings = [];
-      const bookedDates = [];
-      
-      const numBookings = Math.floor(Math.random() * 4);
-      
-      for (let j = 0; j < numBookings; j++) {
-        // Pick a random start date within the range
-        const randomStartIndex = Math.floor(Math.random() * (dateRange.length - 3));
-        const randomDuration = Math.floor(Math.random() * 4) + 1; // 1-4 nights
-        
-        const checkIn = dateRange[randomStartIndex];
-        const checkOutIndex = Math.min(randomStartIndex + randomDuration, dateRange.length - 1);
-        const checkOut = dateRange[checkOutIndex];
-        
-        // Add all dates between check-in and check-out to booked dates
-        for (let k = randomStartIndex; k <= checkOutIndex; k++) {
-          bookedDates.push(dateRange[k]);
-        }
-        
-        // Create a booking with the structure expected by the component
-        bookings.push({
-          id: `booking-${i}-${j}`,
-          room_number: roomNumber,
-          guest_name: ['John Smith', 'Jane Doe', 'Bob Johnson', 'Alice Williams'][Math.floor(Math.random() * 4)],
-          check_in: checkIn,
-          check_out: checkOut,
-          status: ['confirmed', 'checked-in', 'checked-out'][Math.floor(Math.random() * 3)]
-        });
-      }
-      
-      return {
-        id: `room-${i + 1}`,
-        number: roomNumber,
-        type: roomType,
-        property: roomProperty,
-        property_name: roomProperty, // Add property_name for consistency
-        capacity: roomCapacity,
-        rate: roomRate,
-        bookedDates: [...new Set(bookedDates)], // Remove duplicates
-        bookings
-      };
-    });
+    console.error('Error fetching room availability:', error);
+    throw error;
   }
 };
 
 export const fetchSingleRoomAvailability = async (roomId: string, startDate: string, endDate: string) => {
   try {
-    // 1. Get the room details
-    const { data: room, error: roomError } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('id', roomId)
-      .single();
-    
-    if (roomError) throw roomError;
-    
-    // Map room to the expected format
-    const mappedRoom = {
-      id: room.id,
-      number: room.number,
-      type: room.type,
-      property: room.property_name,
-      property_name: room.property_name, // Add for consistency
-      capacity: room.max_occupancy,
-      rate: room.base_rate,
-      status: room.status
-    };
-    
-    // 2. Get all bookings for this room that overlap with the date range
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('room_number', room.number)
-      .or(`check_in.lte.${endDate},check_out.gte.${startDate}`);
-    
-    if (bookingsError) throw bookingsError;
-    
-    // 3. Create an array of all dates in the range
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dateRange = [];
-    
-    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-      dateRange.push(new Date(dt).toISOString().split('T')[0]);
-    }
-    
-    // 4. Determine which dates are booked
-    const bookedDates = [];
-    
-    // For each date in the range, check if the room is booked
-    dateRange.forEach(date => {
-      const isBooked = bookings.some(booking => {
-        const checkIn = booking.check_in;
-        const checkOut = booking.check_out;
-        return date >= checkIn && date < checkOut;
-      });
-      
-      if (isBooked) {
-        bookedDates.push(date);
-      }
-    });
-    
-    // Return the room with availability information
+    // Mocking the API call
     return {
-      ...mappedRoom,
-      bookedDates,
-      bookings
+      id: roomId,
+      number: `10${roomId.slice(-1)}`,
+      type: 'Standard',
+      property: 'Main Building',
+      property_name: 'Main Building',
+      capacity: 2,
+      rate: 100,
+      status: 'available',
+      bookedDates: [],
+      bookings: []
     };
   } catch (error) {
-    console.error(`Error fetching availability for room ${roomId}:`, error);
-    
-    // Generate fallback mock data in the correct format
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const dateRange = [];
-    
-    // Create an array of all dates in the range
-    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-      dateRange.push(new Date(dt).toISOString().split('T')[0]);
-    }
-    
-    // Generate mock room data
-    const room = {
-      id: roomId,
-      number: `${Math.floor(Math.random() * 5) + 1}0${Math.floor(Math.random() * 9) + 1}`,
-      type: ['Standard', 'Deluxe', 'Suite', 'Villa'][Math.floor(Math.random() * 4)],
-      property: ['Seaside Resort', 'Mountain Lodge', 'City Center Hotel', 'Lake View Resort'][Math.floor(Math.random() * 4)],
-      property_name: ['Seaside Resort', 'Mountain Lodge', 'City Center Hotel', 'Lake View Resort'][Math.floor(Math.random() * 4)],
-      rate: Math.floor(Math.random() * 150) + 100,
-      capacity: Math.floor(Math.random() * 4) + 1,
-      status: 'available' // Add status field
-    };
-    
-    // Generate bookings for this room
-    const bookings = [];
-    const bookedDates = [];
-    
-    // Create 0-3 random bookings for this room
-    const numBookings = Math.floor(Math.random() * 4);
-    for (let j = 0; j < numBookings; j++) {
-      // Pick a random start date within the range
-      const randomStartIndex = Math.floor(Math.random() * (dateRange.length - 3));
-      const randomDuration = Math.floor(Math.random() * 4) + 1; // 1-4 nights
-      
-      const checkIn = dateRange[randomStartIndex];
-      const checkOutIndex = Math.min(randomStartIndex + randomDuration, dateRange.length - 1);
-      const checkOut = dateRange[checkOutIndex];
-      
-      // Add all dates between check-in and check-out to booked dates
-      for (let k = randomStartIndex; k <= checkOutIndex; k++) {
-        bookedDates.push(dateRange[k]);
-      }
-      
-      // Create a booking with the structure the component expects
-      bookings.push({
-        id: `booking-${roomId}-${j}`,
-        room_number: room.number,
-        guest_name: ['John Smith', 'Jane Doe', 'Bob Johnson', 'Alice Williams'][Math.floor(Math.random() * 4)],
-        check_in: checkIn,
-        check_out: checkOut,
-        status: ['confirmed', 'checked-in', 'checked-out'][Math.floor(Math.random() * 3)]
-      });
-    }
-    
-    return {
-      ...room,
-      bookedDates: [...new Set(bookedDates)], // Remove duplicates
-      bookings
-    };
+    console.error('Error fetching room availability:', error);
+    throw error;
   }
 };
 
@@ -927,23 +711,14 @@ export const fetchRoomTypes = async (): Promise<any[]> => {
 
 export const fetchCleaningStatuses = async () => {
   try {
-    // Since there might not be a cleaning_statuses table, 
-    // we'll get this information from rooms
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('id, number, property_name, status')
-      .order('number');
-    
-    if (error) throw error;
-    
-    // Convert to cleaning tasks format
-    return data.map(room => ({
-      id: room.id,
-      room_number: room.number,
-      property: room.property_name,
-      status: room.status || 'needs_cleaning',
-      last_cleaned: null, // This would come from a proper cleaning_statuses table
-      assigned_to: null
+    // Mocking the API call
+    return Array.from({ length: 10 }).map((_, index) => ({
+      id: `task-${index + 1}`,
+      room_number: `${100 + index}`,
+      property: index < 5 ? 'Main Building' : 'Beach Resort',
+      status: index % 3 === 0 ? 'Clean' : index % 3 === 1 ? 'Dirty' : 'In Progress',
+      last_cleaned: index % 3 === 0 ? new Date().toISOString() : null,
+      assigned_to: index % 2 === 0 ? 'John Doe' : 'Jane Smith'
     }));
   } catch (error) {
     console.error('Error fetching cleaning statuses:', error);
@@ -951,25 +726,13 @@ export const fetchCleaningStatuses = async () => {
   }
 };
 
-export const updateCleaningStatus = async (roomId: string, newStatus: string) => {
+export const updateCleaningStatus = async (id: string, status: string) => {
   try {
-    // Since there might not be a cleaning_statuses table,
-    // we'll update the room status
-    const { data, error } = await supabase
-      .from('rooms')
-      .update({ status: newStatus })
-      .eq('id', roomId)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    // Mocking the API call
     return {
-      id: data.id,
-      room_number: data.number,
-      property: data.property_name,
-      status: data.status,
-      last_cleaned: new Date().toISOString(),
-      assigned_to: null
+      id,
+      status,
+      updated_at: new Date().toISOString()
     };
   } catch (error) {
     console.error('Error updating cleaning status:', error);

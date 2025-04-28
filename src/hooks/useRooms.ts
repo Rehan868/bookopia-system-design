@@ -13,7 +13,8 @@ export function useRooms() {
       try {
         setIsLoading(true);
         const rooms = await fetchRooms();
-        setData(rooms);
+        // Convert to Room[] type as defined in supabase-types
+        setData(rooms as unknown as Room[]);
       } catch (err) {
         console.error('Error in useRooms:', err);
         setError(err);
@@ -44,7 +45,8 @@ export function useRoom(id: string) {
       try {
         setIsLoading(true);
         const room = await fetchRoomById(id);
-        setData(room);
+        // Convert to Room type as defined in supabase-types
+        setData(room as unknown as Room);
       } catch (err) {
         console.error(`Error in useRoom for ID ${id}:`, err);
         setError(err);

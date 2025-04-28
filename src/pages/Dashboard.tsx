@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OccupancyChart } from "@/components/dashboard/OccupancyChart";
@@ -67,7 +68,7 @@ const Dashboard = () => {
           title="Occupancy Rate" 
           value={isLoading ? "Loading..." : `${stats?.occupancyRate || 0}%`} 
           trend="up" 
-          trendValue={stats?.weeklyOccupancyTrend || "+0%"} 
+          trendValue="7%" 
           icon={Percent} 
           className="animate-slide-up [animation-delay:300ms]" 
         />

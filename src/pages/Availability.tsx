@@ -22,16 +22,19 @@ interface RoomBooking {
   status: 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
 }
 
-interface Room {
+type RoomWithBookings = {
   id: string;
   number: string;
-  property: string;
   type: string;
-  status: 'available' | 'occupied' | 'maintenance';
-  bookings: RoomBooking[];
-}
+  property: string;
+  property_name?: string;
+  capacity?: number;
+  rate?: number;
+  status?: string;
+  bookedDates: any[];
+  bookings: any[];
+};
 
-// Generate array of dates for the calendar view
 const generateDates = (startDate: Date, days: number) => {
   const dates = [];
   for (let i = 0; i < days; i++) {
@@ -42,23 +45,18 @@ const generateDates = (startDate: Date, days: number) => {
   return dates;
 };
 
-// Calculate booking position and width for the calendar view
 const calculateBookingStyle = (booking: RoomBooking, viewStartDate: Date, totalDays: number) => {
   const startDate = booking.startDate;
   const endDate = booking.endDate;
   
-  // Calculate days from view start to booking start
   const startDiff = Math.max(0, Math.floor((startDate.getTime() - viewStartDate.getTime()) / (24 * 60 * 60 * 1000)));
   
-  // Calculate booking duration in days
   const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
   
-  // Ensure the booking is visible in the current view
   if (startDiff >= totalDays || startDiff + duration <= 0) {
     return null;
   }
   
-  // Adjust start and width if the booking extends outside the view
   const visibleStart = Math.max(0, startDiff);
   const visibleDuration = Math.min(totalDays - visibleStart, duration - Math.max(0, -startDiff));
   
@@ -67,21 +65,6 @@ const calculateBookingStyle = (booking: RoomBooking, viewStartDate: Date, totalD
     width: `${(visibleDuration / totalDays) * 100}%`,
     status: booking.status
   };
-};
-
-// Add the status field to the room data structure
-// This is just a type augmentation for the component
-type RoomWithBookings = {
-  id: string;
-  number: string;
-  type: string;
-  property: string;
-  property_name: string;
-  capacity: number;
-  rate: number;
-  status: string;
-  bookedDates: any[];
-  bookings: any[];
 };
 
 const Availability = () => {
@@ -95,30 +78,24 @@ const Availability = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [filteredRooms, setFilteredRooms] = useState<RoomWithBookings[]>([]);
 
-  // Calculate end date based on display days
   const endDate = new Date(viewStartDate);
   endDate.setDate(endDate.getDate() + displayDays);
 
-  // Fetch availability data
   const { data: availabilityData, isLoading: availabilityLoading } = useAvailability(
     viewStartDate, 
     endDate
   );
 
-  // Fetch bookings data
   const { data: bookingsData, isLoading: bookingsLoading } = useBookings();
 
   const calendarDates = generateDates(viewStartDate, displayDays);
 
-  // Process availability and bookings data
   useEffect(() => {
     if (availabilityData && bookingsData) {
       const processedRooms: RoomWithBookings[] = availabilityData.map(room => {
-        // Find bookings for this room
         const roomBookings = bookingsData.filter(booking => 
           booking.room_number === room.number
         ).map(booking => {
-          // Transform booking to RoomBooking format
           return {
             id: booking.id,
             guestName: booking.guest_name,
@@ -128,7 +105,6 @@ const Availability = () => {
           };
         });
         
-        // Determine room status based on today's bookings
         const today = new Date();
         const hasActiveBooking = roomBookings.some(booking => 
           isSameDay(booking.startDate, today) || 
@@ -140,12 +116,15 @@ const Availability = () => {
           number: room.number,
           property: room.property || room.property_name || '',
           type: room.type || '',
+          property_name: room.property_name,
+          capacity: room.capacity,
+          rate: room.rate,
           status: hasActiveBooking ? 'occupied' : (room.status as 'available' | 'occupied' | 'maintenance') || 'available',
+          bookedDates: room.bookedDates || [],
           bookings: roomBookings
         };
       });
       
-      // Apply filters
       let filtered = processedRooms;
       
       if (property && property !== "all") {
@@ -225,7 +204,6 @@ const Availability = () => {
   };
 
   const handleCellClick = (roomId: string, date: Date) => {
-    // In a real app, this would open a booking creation form
     toast({
       title: "Create Booking",
       description: `Room ${filteredRooms.find(r => r.id === roomId)?.number} selected for ${format(date, 'MMMM d, yyyy')}`,
@@ -233,11 +211,8 @@ const Availability = () => {
   };
   
   const handleBookingClick = (bookingId: string) => {
-    // Navigate to booking details
-    // In a real app this would be handled by react-router
   };
 
-  // Loading state
   if (availabilityLoading || bookingsLoading) {
     return (
       <div className="animate-fade-in">

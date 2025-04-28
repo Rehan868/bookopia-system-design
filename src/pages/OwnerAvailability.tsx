@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 // Add the status field to the room data structure
-// This is just a type augmentation for the component
 type RoomWithBookings = {
   id: string;
   number: string;
@@ -16,7 +15,7 @@ type RoomWithBookings = {
   property_name: string;
   capacity: number;
   rate: number;
-  status: string;
+  status?: string;
   bookedDates: any[];
   bookings: any[];
 };
@@ -33,7 +32,7 @@ const OwnerAvailability = () => {
     const formattedDate = format(date, 'yyyy-MM-dd');
     const result: Record<string, string> = {};
     
-    availabilityData.forEach(room => {
+    availabilityData.forEach((room: RoomWithBookings) => {
       // Check if the date is in the booked dates array
       const isBooked = room.bookedDates && room.bookedDates.includes(formattedDate);
       result[room.number] = isBooked ? 'booked' : 'available';
