@@ -38,7 +38,6 @@ const BookingView = () => {
     );
   }
 
-  // Pass the booking data to BookingDetails component
   return <BookingDetails booking={booking} />;
 };
 

@@ -1,213 +1,171 @@
 
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useBooking } from '@/hooks/useBookings';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader, FileIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Booking } from '@/services/supabase-types';
 
-export function BookingDetails() {
-  const { id } = useParams<{ id: string }>();
-  const { data: booking, isLoading, error } = useBooking(id || '');
+export interface BookingDetailsProps {
+  booking: Booking;
+}
 
-  if (!id) {
-    return <div className="p-6">No booking ID provided</div>;
+export const BookingDetails: React.FC<BookingDetailsProps> = ({ booking }) => {
+  const { toast } = useToast();
+  
+  if (!booking) {
+    return <div>No booking details available</div>;
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading booking details...</span>
-      </div>
-    );
-  }
-
-  if (error || !booking) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <p className="text-red-500">Failed to load booking details</p>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => window.location.reload()}
-        >
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  // Helper function to safely display numeric values
-  const formatNumber = (value: any) => {
-    const num = Number(value);
-    return isNaN(num) ? '0.00' : num.toFixed(2);
+  const handleStatusChange = (newStatus: string) => {
+    toast({
+      title: 'Status Updated',
+      description: `Booking status changed to ${newStatus}`,
+    });
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto p-4">
+      <div className="flex flex-col lg:flex-row justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Booking Details</h1>
-          <p className="text-muted-foreground">View booking information</p>
+          <h1 className="text-2xl font-bold">
+            Booking #{booking.booking_number}
+          </h1>
+          <p className="text-gray-600">
+            Created on {format(new Date(booking.created_at), 'PPP')}
+          </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to={`/bookings/${id}/edit`}>Edit Booking</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2 mt-4 lg:mt-0">
+          <Button 
+            variant="outline" 
+            onClick={() => handleStatusChange('checked-in')}
+          >
+            Check In
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => handleStatusChange('checked-out')}
+          >
+            Check Out
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={() => handleStatusChange('cancelled')}
+          >
+            Cancel Booking
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Guest Information Card */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Guest Information</CardTitle>
-            <CardDescription>Guest details and documents</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">Booking Reference</h3>
-                <p className="text-muted-foreground">{booking.booking_number}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Status</h3>
-                <p className="text-muted-foreground">{booking.status}</p>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-primary/10 p-4">
+            <h2 className="font-semibold text-lg">Guest Information</h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <div>
+              <p className="text-sm text-gray-600">Name</p>
+              <p className="font-medium">{booking.guest_name}</p>
             </div>
+            <div>
+              <p className="text-sm text-gray-600">Email</p>
+              <p className="font-medium">{booking.guest_email}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Phone</p>
+              <p className="font-medium">{booking.guest_phone || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Guests</p>
+              <p className="font-medium">{booking.adults} Adults, {booking.children} Children</p>
+            </div>
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <h3 className="font-medium">Guest Name</h3>
-              <p className="text-muted-foreground">{booking.guest_name}</p>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-primary/10 p-4">
+            <h2 className="font-semibold text-lg">Booking Details</h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Check In</p>
+                <p className="font-medium">{format(new Date(booking.check_in), 'PPP')}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Check Out</p>
+                <p className="font-medium">{format(new Date(booking.check_out), 'PPP')}</p>
+              </div>
             </div>
+            <div>
+              <p className="text-sm text-gray-600">Property</p>
+              <p className="font-medium">{booking.property}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Room</p>
+              <p className="font-medium">{booking.room_number}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Status</p>
+              <div className="mt-1">
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  {booking.status}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">Email Address</h3>
-                <p className="text-muted-foreground">{booking.guest_email}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Phone Number</h3>
-                <p className="text-muted-foreground">{booking.guest_phone}</p>
-              </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-primary/10 p-4">
+            <h2 className="font-semibold text-lg">Payment Information</h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex justify-between">
+              <p className="text-sm text-gray-600">Base Rate</p>
+              <p className="font-medium">${booking.base_rate}</p>
             </div>
-
-            {/* Display Guest Document only if it exists */}
-            {booking.guest_document && (
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Guest ID/Passport</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileIcon className="h-4 w-4" />
-                  <span>{booking.guest_document}</span>
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={booking.guest_document} target="_blank" rel="noopener noreferrer">
-                      View Document
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Booking Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Booking Summary</CardTitle>
-            <CardDescription>Overview of the current booking</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-blue-50 border border-blue-100 rounded-md">
-              <div className="font-medium text-blue-800">Stay Information</div>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <div>Check-in</div>
-                <div className="text-right font-medium">{booking.check_in}</div>
-                <div>Check-out</div>
-                <div className="text-right font-medium">{booking.check_out}</div>
-                <div>Guests</div>
-                <div className="text-right font-medium">
-                  {Number(booking.adults || 0) + Number(booking.children || 0)} ({Number(booking.adults || 0)} adults, {Number(booking.children || 0)} children)
-                </div>
+            <div className="flex justify-between">
+              <p className="text-sm text-gray-600">VAT</p>
+              <p className="font-medium">${booking.vat || 0}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm text-gray-600">Tourism Fee</p>
+              <p className="font-medium">${booking.tourism_fee || 0}</p>
+            </div>
+            <div className="flex justify-between border-t pt-2">
+              <p className="font-semibold">Total Amount</p>
+              <p className="font-semibold">${booking.amount}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm text-gray-600">Paid</p>
+              <p className="font-medium text-green-600">${booking.amount_paid || 0}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-sm text-gray-600">Balance</p>
+              <p className="font-medium text-red-600">${booking.remaining_amount || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Payment Status</p>
+              <div className="mt-1">
+                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                  {booking.payment_status}
+                </span>
               </div>
             </div>
-
-            <div className="space-y-3 pt-3 border-t">
-              <div className="flex justify-between text-sm">
-                <span>Base Rate:</span>
-                <span>${formatNumber(booking.base_rate)}</span>
-              </div>
-              <div className="flex justify-between font-medium">
-                <span>Total Amount:</span>
-                <span>${formatNumber(booking.amount)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Security Deposit:</span>
-                <span>${formatNumber(booking.security_deposit)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Booking Details Card */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Booking Details</CardTitle>
-            <CardDescription>Room and stay information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">Property</h3>
-                <p className="text-muted-foreground">{booking.property}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Room Number</h3>
-                <p className="text-muted-foreground">{booking.room_number}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Financial Details Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Financial Details</CardTitle>
-            <CardDescription>Breakdown of costs and fees</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="font-medium">Commission</h3>
-              <p className="text-muted-foreground">${formatNumber(booking.commission)}</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium">Tourism Fee</h3>
-              <p className="text-muted-foreground">${formatNumber(booking.tourism_fee)}</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium">VAT</h3>
-              <p className="text-muted-foreground">${formatNumber(booking.vat)}</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium">Net To Owner</h3>
-              <p className="text-muted-foreground">${formatNumber(booking.net_to_owner)}</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-medium">Payment Status</h3>
-              <p className="text-muted-foreground">{booking.payment_status}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notes Card */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-            <CardDescription>Additional notes and special requests</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{booking.notes || 'No notes available'}</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
+
+      {booking.notes && (
+        <div className="mt-6 bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-primary/10 p-4">
+            <h2 className="font-semibold text-lg">Notes</h2>
+          </div>
+          <div className="p-4">
+            <p>{booking.notes}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};

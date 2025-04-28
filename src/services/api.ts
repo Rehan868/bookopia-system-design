@@ -1,5 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Room, Booking, User, Owner, Expense } from './supabase-types';
+import { Room as SupabaseRoom, Booking, User, Owner as SupabaseOwner, Expense } from './supabase-types';
+
+interface ApiRoom {
+  id: string;
+  number: string;
+  property: string;
+  type: string;
+  status: 'available' | 'occupied' | 'maintenance';
+  bookings: RoomBooking[];
+}
 
 interface RoomBooking {
   id: string;
@@ -7,15 +16,6 @@ interface RoomBooking {
   startDate: Date;
   endDate: Date;
   status: 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
-}
-
-interface Room {
-  id: string;
-  number: string;
-  property: string;
-  type: string;
-  status: 'available' | 'occupied' | 'maintenance';
-  bookings: RoomBooking[];
 }
 
 // Mock data
@@ -530,12 +530,11 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
       .single();
     
     if (error) throw error;
-    return data;
+    return data as Booking;
   } catch (error) {
     console.error(`Error fetching booking with ID ${id}:`, error);
     
     // If there's an error with the database, generate mock data as a fallback
-    // This is just for development and should be removed in production
     const mockBooking: Booking = {
       id: id,
       booking_number: `BK${Math.floor(Math.random() * 10000)}`,
@@ -559,9 +558,10 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
       remaining_amount: Math.floor(Math.random() * 200),
       status: ['confirmed', 'pending', 'checked-in', 'completed'][Math.floor(Math.random() * 4)],
       payment_status: ['paid', 'partially_paid', 'pending'][Math.floor(Math.random() * 3)],
+      guest_document: null,
+      notes: `Mock booking details for ID ${id}`,
       created_at: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString(),
       updated_at: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
-      notes: `Mock booking details for ID ${id}`
     };
     
     return mockBooking;

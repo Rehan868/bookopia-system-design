@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { addDays, addMonths, format, isSameDay, isBefore, isAfter } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -181,7 +182,9 @@ const RoomAvailability: React.FC<RoomAvailabilityProps> = ({
               <span>Booked</span>
             </div>
           </div>
-          <div className="text-muted-foreground">{roomData.status}</div>
+          <div className="text-muted-foreground">
+            {roomData.status || 'Available'}
+          </div>
         </div>
       </CardContent>
     </Card>

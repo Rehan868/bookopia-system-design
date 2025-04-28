@@ -1,6 +1,32 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { Room } from '@/services/supabase-types';
+import { Room } from '@/types/room';
 import { fetchRooms, fetchRoomById, createRoom, updateRoom, deleteRoom, updateRoomStatus } from '@/services/api';
+import { Room as SupabaseRoom } from '@/services/supabase-types';
+
+// Helper function to convert between types
+function convertSupabaseRoomToRoom(room: SupabaseRoom): Room {
+  return {
+    id: room.id,
+    number: room.number,
+    type: room.type,
+    property: room.property_name || '',
+    property_name: room.property_name,
+    property_id: room.property_id,
+    max_occupancy: room.max_occupancy,
+    base_rate: room.base_rate,
+    status: room.status,
+    owner_id: room.owner_id,
+    description: room.description,
+    amenities: room.amenities,
+    image: room.image,
+    created_at: room.created_at,
+    updated_at: room.updated_at,
+    // Add missing fields needed by components
+    capacity: room.max_occupancy,
+    rate: room.base_rate,
+  };
+}
 
 export function useRooms() {
   const [data, setData] = useState<Room[] | null>(null);
@@ -10,7 +36,8 @@ export function useRooms() {
   const fetchRoomsData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const rooms = await fetchRooms();
+      const supabaseRooms = await fetchRooms();
+      const rooms = supabaseRooms.map(convertSupabaseRoomToRoom);
       setData(rooms);
       return rooms;
     } catch (err) {
@@ -28,7 +55,8 @@ export function useRooms() {
 
   const addRoom = useCallback(async (roomData: Partial<Room>) => {
     try {
-      const newRoom = await createRoom(roomData);
+      const newSupabaseRoom = await createRoom(roomData);
+      const newRoom = convertSupabaseRoomToRoom(newSupabaseRoom);
       setData(prevData => prevData ? [...prevData, newRoom] : [newRoom]);
       return newRoom;
     } catch (err) {
@@ -40,7 +68,8 @@ export function useRooms() {
 
   const editRoom = useCallback(async (id: string, roomData: Partial<Room>) => {
     try {
-      const updatedRoom = await updateRoom(id, roomData);
+      const updatedSupabaseRoom = await updateRoom(id, roomData);
+      const updatedRoom = convertSupabaseRoomToRoom(updatedSupabaseRoom);
       setData(prevData => 
         prevData 
           ? prevData.map(room => room.id === id ? updatedRoom : room) 
@@ -72,7 +101,8 @@ export function useRooms() {
 
   const changeRoomStatus = useCallback(async (id: string, status: string) => {
     try {
-      const updatedRoom = await updateRoomStatus(id, status);
+      const updatedSupabaseRoom = await updateRoomStatus(id, status);
+      const updatedRoom = convertSupabaseRoomToRoom(updatedSupabaseRoom);
       setData(prevData => 
         prevData 
           ? prevData.map(room => room.id === id ? { ...room, status } : room) 
@@ -113,7 +143,8 @@ export function useRoom(id: string) {
 
       try {
         setIsLoading(true);
-        const room = await fetchRoomById(id);
+        const supabaseRoom = await fetchRoomById(id);
+        const room = convertSupabaseRoomToRoom(supabaseRoom);
         setData(room);
       } catch (err) {
         console.error(`Error in useRoom for ID ${id}:`, err);

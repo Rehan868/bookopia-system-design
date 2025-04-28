@@ -22,7 +22,7 @@ interface BookingFormData {
   guestEmail: string;
   guestPhone: string;
   property: string;
-  roomId: string; // Changed to store room ID
+  roomId: string;
   roomNumber: string;
   checkIn: Date;
   checkOut: Date;
@@ -80,13 +80,12 @@ const formatNumber = (value: any): string => {
   return num.toFixed(2);
 };
 
-// Custom CSS styles for the calendar component
 const calendarStyles = {
   unavailable: {
     opacity: 0.4,
     textDecoration: 'line-through',
-    backgroundColor: 'rgb(254, 226, 226)', // Light red background
-    color: 'rgb(185, 28, 28)', // Dark red text
+    backgroundColor: 'rgb(254, 226, 226)',
+    color: 'rgb(185, 28, 28)',
     cursor: 'not-allowed'
   }
 };
@@ -137,7 +136,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     to: formData.checkOut,
   });
   
-  // Fetch properties on component mount
   useEffect(() => {
     const loadProperties = async () => {
       setIsLoadingProperties(true);
@@ -159,7 +157,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     loadProperties();
   }, [toast]);
   
-  // Fetch rooms on component mount
   useEffect(() => {
     const loadRooms = async () => {
       setIsLoadingRooms(true);
@@ -167,7 +164,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         const roomsData = await fetchRooms();
         setRooms(roomsData);
         
-        // If property is already selected (edit mode), filter rooms
         if (formData.property) {
           const propertyRooms = roomsData.filter(room => 
             room.property_id === formData.property || room.property === formData.property
@@ -204,7 +200,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     }));
   }, []);
   
-  // Effect to filter rooms when property changes
   useEffect(() => {
     if (formData.property) {
       const propertyRooms = rooms.filter(room => 
@@ -216,7 +211,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     }
   }, [formData.property, rooms]);
   
-  // Effect to update base rate when room changes
   useEffect(() => {
     if (formData.roomId) {
       const selectedRoom = rooms.find(room => room.id === formData.roomId);
@@ -228,27 +222,22 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         }));
       }
       
-      // Check room availability for selected dates
       if (dateRange.from && dateRange.to) {
         checkRoomAvailability(formData.roomId, dateRange.from, dateRange.to);
       }
     }
   }, [formData.roomId, rooms, dateRange]);
   
-  // Function to check room availability
   const checkRoomAvailability = async (roomId: string, startDate: Date, endDate: Date) => {
     if (!roomId) return;
     
     setIsCheckingAvailability(true);
     try {
-      // Format dates as ISO strings for API
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
-      // Get room availability
       const roomAvailability = await fetchSingleRoomAvailability(roomId, startDateStr, endDateStr);
       
-      // Convert booked dates strings to Date objects
       const blockedDates = (roomAvailability.bookedDates || []).map(date => new Date(date));
       setBookedDates(blockedDates);
     } catch (error) {
@@ -275,8 +264,7 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     setFormData(prev => ({
       ...prev,
       property: propertyId,
-      roomId: '', // Clear room selection when property changes
-      roomNumber: '',
+      roomId: '',
     }));
   };
   
@@ -311,9 +299,7 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     });
   };
   
-  // Custom date range picker function that checks for booked dates
   const isDateUnavailable = (date: Date) => {
-    // Check if date is in bookedDates
     return bookedDates.some(bookedDate => 
       isSameDay(date, bookedDate)
     );
@@ -351,7 +337,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         return updatedData;
       });
       
-      // Check room availability if a room is selected
       if (formData.roomId && range.to) {
         checkRoomAvailability(formData.roomId, range.from, range.to);
       }
@@ -368,7 +353,6 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     e.preventDefault();
     
     try {
-      // Check if room is available for selected dates
       if (bookedDates.length > 0) {
         const hasConflict = bookedDates.some(date => 
           (isAfter(date, formData.checkIn) || isSameDay(date, formData.checkIn)) && 
@@ -385,10 +369,7 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
         }
       }
       
-      // Find room details based on roomId
       const selectedRoom = rooms.find(room => room.id === formData.roomId);
-      
-      // Find property name based on propertyId
       const selectedProperty = properties.find(property => property.id === formData.property);
       
       const bookingData = {

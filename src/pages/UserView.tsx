@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -27,12 +26,10 @@ const UserView = () => {
   const [isRemovingRole, setIsRemovingRole] = useState(false);
 
   useEffect(() => {
-    // Fetch roles for this user
     const fetchUserRoles = async () => {
       try {
         if (!id) return;
         
-        // First get user's roles
         const { data: userRoles, error: userRolesError } = await supabase
           .from('user_roles')
           .select('*, roles(*)')
@@ -40,7 +37,6 @@ const UserView = () => {
         
         if (userRolesError) throw userRolesError;
         
-        // Format roles data
         const formattedRoles = userRoles?.map(ur => ({
           id: ur.roles.id,
           name: ur.roles.name,
@@ -49,14 +45,12 @@ const UserView = () => {
         
         setRoles(formattedRoles);
         
-        // Then fetch all available roles for the dropdown
         const { data: allRoles, error: allRolesError } = await supabase
           .from('roles')
           .select('*');
         
         if (allRolesError) throw allRolesError;
         
-        // Filter out roles that the user already has
         const userRoleIds = formattedRoles.map(r => r.id);
         const availableRolesFiltered = allRoles?.filter(r => !userRoleIds.includes(r.id)) || [];
         setAvailableRoles(availableRolesFiltered);
@@ -74,14 +68,12 @@ const UserView = () => {
     try {
       setIsAddingRole(true);
       
-      // Add the role to the user
       const { error } = await supabase
         .from('user_roles')
         .insert([{ user_id: id, role_id: selectedRole }]);
       
       if (error) throw error;
       
-      // Refresh the roles
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
         .select('*')
@@ -90,13 +82,10 @@ const UserView = () => {
       
       if (roleError) throw roleError;
       
-      // Update the roles list
       setRoles([...roles, roleData]);
       
-      // Remove the role from available roles
       setAvailableRoles(availableRoles.filter(r => r.id !== selectedRole));
       
-      // Reset the selection
       setSelectedRole('');
     } catch (err) {
       console.error("Error adding role:", err);
@@ -111,7 +100,6 @@ const UserView = () => {
     try {
       setIsRemovingRole(true);
       
-      // Remove the role from the user
       const { error } = await supabase
         .from('user_roles')
         .delete()
@@ -120,13 +108,10 @@ const UserView = () => {
       
       if (error) throw error;
       
-      // Find the removed role
       const removedRole = roles.find(r => r.id === roleId);
       
-      // Update the roles list
       setRoles(roles.filter(r => r.id !== roleId));
       
-      // Add the role back to available roles
       if (removedRole) {
         setAvailableRoles([...availableRoles, removedRole]);
       }
@@ -141,7 +126,6 @@ const UserView = () => {
     try {
       if (!id) return;
       
-      // Delete user roles first
       const { error: rolesError } = await supabase
         .from('user_roles')
         .delete()
@@ -149,7 +133,6 @@ const UserView = () => {
       
       if (rolesError) throw rolesError;
       
-      // Then delete the user
       const { error } = await supabase
         .from('users')
         .delete()
@@ -157,7 +140,6 @@ const UserView = () => {
       
       if (error) throw error;
       
-      // Navigate back to users list
       navigate('/users');
     } catch (err) {
       console.error("Error deleting user:", err);
@@ -245,7 +227,9 @@ const UserView = () => {
               </div>
               
               <div className="flex flex-wrap gap-2">
-                <Badge>{user.role}</Badge>
+                <Badge variant="outline" className="text-amber-600 bg-amber-50">
+                  {user.role}
+                </Badge>
                 {user.two_factor_enabled && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <ShieldCheck className="h-3 w-3" />
