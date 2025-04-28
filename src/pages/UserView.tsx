@@ -1,374 +1,270 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, FileEdit, Clock, Plus, X } from 'lucide-react';
-import { useUser } from '@/hooks/useUsers';
-import { useAuditLogs } from '@/hooks/useAuditLogs';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { fetchRoles, fetchUserRoles, assignRoleToUser, removeRoleFromUser } from '@/services/api';
-import { useToast } from '@/hooks/use-toast';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  MoreHorizontal,
+  Mail,
+  Phone,
+  User,
+  Briefcase,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Edit,
+  Copy,
+  ArrowLeft,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { fetchUser, fetchRoles, assignRoleToUser, removeRoleFromUser } from "@/services/api";
+import { format } from 'date-fns';
 
 const UserView = () => {
-  const { id } = useParams();
-  const { data: user, isLoading, error } = useUser(id || '');
-  const { data: auditLogs } = useAuditLogs();
+  const { id } = useParams<{ id: string }>();
+  const [user, setUser] = useState<any>(null);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [assigningRole, setAssigningRole] = useState<boolean>(false);
+  const [removingRole, setRemovingRole] = useState<boolean>(false);
+  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const [userRoles, setUserRoles] = useState([]);
-  const [availableRoles, setAvailableRoles] = useState([]);
-  const [selectedRole, setSelectedRole] = useState('');
-  const [isRolesLoading, setIsRolesLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
-  const userLogs = auditLogs?.filter(log => log.user_id === id).slice(0, 5) || [];
 
   useEffect(() => {
-    const loadRoleData = async () => {
-      if (!id) return;
-      
-      try {
-        setIsRolesLoading(true);
-        
-        // Load all roles and user's assigned roles
-        const [allRoles, assignedRoles] = await Promise.all([
-          fetchRoles(),
-          fetchUserRoles(id)
-        ]);
-        
-        setUserRoles(assignedRoles.map(ur => ({
-          id: ur.role_id,
-          name: ur.roles ? ur.roles.name : 'Unknown Role',
-          description: ur.roles ? ur.roles.description : ''
-        })));
-        
-        // Filter out roles that the user already has
-        const assignedRoleIds = assignedRoles.map(ur => ur.role_id);
-        setAvailableRoles(allRoles.filter(role => !assignedRoleIds.includes(role.id)));
-      } catch (error) {
-        console.error('Error loading role data:', error);
+    const loadData = async () => {
+      if (!id) {
         toast({
-          title: 'Error',
-          description: 'Failed to load role data',
-          variant: 'destructive'
+          title: "Error",
+          description: "User ID is missing.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userData = await fetchUser(id);
+        setUser(userData);
+
+        const rolesData = await fetchRoles();
+        setRoles(rolesData);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load user data.",
+          variant: "destructive",
         });
       } finally {
-        setIsRolesLoading(false);
+        setLoading(false);
       }
     };
-    
-    loadRoleData();
+
+    loadData();
   }, [id, toast]);
 
   const handleAssignRole = async () => {
-    if (!selectedRole) return;
-    
+    if (!selectedRole) {
+      toast({
+        title: "Warning",
+        description: "Please select a role to assign.",
+        variant: "warning",
+      });
+      return;
+    }
+
+    setAssigningRole(true);
     try {
-      await assignRoleToUser(id, selectedRole);
-      
-      // Update local state to reflect the change
-      const role = availableRoles.find(r => r.id === selectedRole);
-      setUserRoles([...userRoles, { 
-        id: role.id, 
-        name: role.name,
-        description: role.description 
-      }]);
-      setAvailableRoles(availableRoles.filter(r => r.id !== selectedRole));
-      
+      await assignRoleToUser(id as string, selectedRole);
       toast({
-        title: 'Role Assigned',
-        description: `${role.name} role assigned successfully`,
+        title: "Success",
+        description: "Role assigned successfully.",
       });
-      
-      // Reset and close dialog
-      setSelectedRole('');
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error('Error assigning role:', error);
+      // Refresh user data after assigning role
+      const userData = await fetchUser(id as string);
+      setUser(userData);
+    } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to assign role',
-        variant: 'destructive'
+        title: "Error",
+        description: error.message || "Failed to assign role.",
+        variant: "destructive",
       });
+    } finally {
+      setAssigningRole(false);
     }
   };
 
-  const handleRemoveRole = async (roleId) => {
+  const handleRemoveRole = async (roleId: string) => {
+    setRemovingRole(true);
     try {
-      await removeRoleFromUser(id, roleId);
-      
-      // Update local state to reflect the change
-      const role = userRoles.find(r => r.id === roleId);
-      setUserRoles(userRoles.filter(r => r.id !== roleId));
-      setAvailableRoles([...availableRoles, role]);
-      
+      await removeRoleFromUser(id as string, roleId);
       toast({
-        title: 'Role Removed',
-        description: `${role.name} role removed successfully`,
+        title: "Success",
+        description: "Role removed successfully.",
       });
-    } catch (error) {
-      console.error('Error removing role:', error);
+      // Refresh user data after removing role
+      const userData = await fetchUser(id as string);
+      setUser(userData);
+    } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to remove role',
-        variant: 'destructive'
+        title: "Error",
+        description: error.message || "Failed to remove role.",
+        variant: "destructive",
       });
+    } finally {
+      setRemovingRole(false);
     }
   };
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-48">
-      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-    </div>;
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
-  if (error || !user) {
-    return <div className="text-center py-8 text-red-500">Error loading user details</div>;
+  if (!user) {
+    return <div>User not found.</div>;
   }
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" asChild className="mr-4">
-            <Link to="/users">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Users
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">User Profile</h1>
-            <p className="text-muted-foreground mt-1">View user information</p>
-          </div>
-        </div>
-        <Button asChild>
-          <Link to={`/users/edit/${user.id}`}>
-            <FileEdit className="h-4 w-4 mr-2" />
-            Edit User
-          </Link>
+      <div className="mb-8">
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={user.avatar_url || undefined} />
-                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-2xl font-semibold">{user.name}</h2>
-                <p className="text-muted-foreground">{user.email}</p>
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-muted-foreground">User Roles</p>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Assign Role
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Assign Role to User</DialogTitle>
-                      <DialogDescription>
-                        Select a role to assign to {user.name}
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    {availableRoles.length === 0 ? (
-                      <div className="py-4 text-center">
-                        <p className="text-muted-foreground">
-                          No available roles to assign. This user has all available roles.
-                        </p>
-                      </div>
-                    ) : (
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableRoles.map(role => (
-                            <SelectItem key={role.id} value={role.id}>
-                              {role.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => {
-                        setSelectedRole('');
-                        setIsDialogOpen(false);
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleAssignRole} disabled={!selectedRole}>
-                        Assign Role
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              
-              {isRolesLoading ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
-                </div>
-              ) : userRoles.length === 0 ? (
-                <div className="text-center py-4 border rounded-md">
-                  <p className="text-muted-foreground">No roles assigned</p>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {userRoles.map(role => (
-                    <Badge 
-                      key={role.id} 
-                      variant="secondary"
-                      className="flex items-center gap-1 px-3 py-1"
-                    >
-                      {role.name}
-                      <button
-                        onClick={() => handleRemoveRole(role.id)}
-                        className="ml-1 hover:bg-muted rounded-full p-0.5"
-                        aria-label={`Remove ${role.name} role`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              
-              <div className="mt-4">
-                <p className="text-sm text-muted-foreground">Legacy Role (deprecated)</p>
-                <Badge className="mt-1">{user.role}</Badge>
-              </div>
-            </div>
-            
-            <div>
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Badge 
-                variant="secondary"
-                className="mt-1"
-              >
-                Active
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* User Details Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Account Details</CardTitle>
+            <CardTitle>User Details</CardTitle>
+            <CardDescription>Information about the user</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Last Login</p>
-              <p className="font-medium">{user.last_active ? new Date(user.last_active).toLocaleString() : 'Never'}</p>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center space-x-4">
+              <Avatar>
+                <AvatarImage src={user.avatar_url || "/avatars/01.png"} alt={user.name} />
+                <AvatarFallback>{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-lg font-semibold">{user.name}</h2>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Created At</p>
-              <p className="font-medium">{user.created_at ? new Date(user.created_at).toLocaleString() : new Date().toISOString().split('T')[0]}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div>
+                <Label>Email</Label>
+                <p className="text-sm font-medium">{user.email}</p>
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <p className="text-sm font-medium">{user.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <Label>Role</Label>
+                <p className="text-sm font-medium">{user.role || 'N/A'}</p>
+              </div>
+              <div>
+                <Label>Position</Label>
+                <p className="text-sm font-medium">{user.position || 'N/A'}</p>
+              </div>
+              <div>
+                <Label>Joined</Label>
+                <p className="text-sm font-medium">
+                  {user && (user.updated_at ? format(new Date(user.updated_at), 'PPP') : 'Never')}
+                </p>
+              </div>
+              <div>
+                <Label>Last Active</Label>
+                <p className="text-sm font-medium">
+                  {user && (user.updated_at ? format(new Date(user.updated_at), 'PPP') : 'Never')}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Two-Factor Auth</p>
-              <Badge variant="secondary">
-                Disabled
-              </Badge>
-            </div>
+
+            <Button variant="outline" onClick={() => navigate(`/users/edit/${user.id}`)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit User
+            </Button>
           </CardContent>
         </Card>
-      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent Activity</CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/audit">View All</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {userLogs.length > 0 ? (
+        {/* Roles and Permissions Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Roles and Permissions</CardTitle>
+            <CardDescription>Manage user roles and permissions</CardDescription>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {userLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={log.action === 'create' ? 'outline' : 
-                                        log.action === 'update' ? 'secondary' : 'default'}>
-                          {log.action}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>{log.type}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(log.timestamp).toLocaleString()}
-                      </div>
+                {roles.map((role) => (
+                  <TableRow key={role.id}>
+                    <TableCell>{role.name}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleRemoveRole(role.id)}>
+                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                            Remove Role
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-muted-foreground mb-2">No activity found for this user</p>
+
+            <div className="mt-4 flex items-center space-x-2">
+              <Label htmlFor="role">Assign Role:</Label>
+              <Input
+                type="text"
+                id="role"
+                placeholder="Select Role ID"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              />
+              <Button onClick={handleAssignRole} disabled={assigningRole}>
+                {assigningRole ? "Assigning..." : "Assign"}
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

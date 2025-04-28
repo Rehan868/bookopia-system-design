@@ -132,7 +132,7 @@ const ExpenseView = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Amount</p>
-                <p className="font-medium text-lg">${parseFloat(expense.amount).toFixed(2)}</p>
+                <TableCell>{parseFloat(expense.amount).toFixed(2)}</TableCell>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -21,6 +21,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   signInAsOwner: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<void>;
+  ownerLogin: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -208,6 +211,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Sign out error:', error);
     }
   };
+
+  // Additional wrapper functions for compatibility with existing code
+  const login = async (email: string, password: string) => {
+    const result = await signIn(email, password);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  };
+
+  const ownerLogin = async (email: string, password: string) => {
+    const result = await signInAsOwner(email, password);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  };
+
+  const logout = async () => {
+    await signOut();
+  };
   
   return (
     <AuthContext.Provider
@@ -218,7 +240,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         owner,
         signIn,
         signOut,
-        signInAsOwner
+        signInAsOwner,
+        login,
+        ownerLogin,
+        logout
       }}
     >
       {children}

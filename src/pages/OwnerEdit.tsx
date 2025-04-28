@@ -61,18 +61,23 @@ const OwnerEdit = () => {
 
   React.useEffect(() => {
     if (owner) {
+      const formattedOwner = {
+        ...owner,
+        payment_details: owner.payment_details || {},
+      };
+
       form.reset({
-        name: owner.name,
-        email: owner.email,
-        phone: owner.phone || '',
-        properties: owner.properties,
-        revenue: owner.revenue,
-        occupancy: owner.occupancy,
-        avatar: owner.avatar || '',
-        joinedDate: owner.joinedDate || '',
-        bankName: owner.paymentDetails?.bank || '',
-        accountNumber: owner.paymentDetails?.accountNumber || '',
-        routingNumber: owner.paymentDetails?.routingNumber || ''
+        name: formattedOwner.name,
+        email: formattedOwner.email,
+        phone: formattedOwner.phone || '',
+        properties: formattedOwner.properties,
+        revenue: formattedOwner.revenue,
+        occupancy: formattedOwner.occupancy,
+        avatar: formattedOwner.avatar || '',
+        joinedDate: formattedOwner.joinedDate || '',
+        bankName: formattedOwner.payment_details?.bank || '',
+        accountNumber: formattedOwner.payment_details?.accountNumber || '',
+        routingNumber: formattedOwner.payment_details?.routingNumber || ''
       });
     }
   }, [owner, form]);

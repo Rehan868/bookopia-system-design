@@ -172,8 +172,8 @@ const CleaningStatus = () => {
                         <TableCell>{room.property}</TableCell>
                         <TableCell>
                           <Badge variant={
-                            room.status === "clean" ? "success" : 
-                            room.status === "dirty" ? "warning" : 
+                            room.status === "clean" ? "default" : 
+                            room.status === "dirty" ? "secondary" : 
                             room.status === "maintenance" ? "destructive" :
                             "outline"
                           }>
