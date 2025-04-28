@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { Room, Booking, User, Owner, Expense } from './supabase-types';
 
@@ -61,6 +62,26 @@ export const fetchBookings = async (): Promise<Booking[]> => {
   }
 };
 
+export const fetchRecentBookings = async (limit: number = 5): Promise<Booking[]> => {
+  try {
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching recent bookings:', error);
+      throw error;
+    }
+
+    return bookings || [];
+  } catch (error) {
+    console.error('Error fetching recent bookings:', error);
+    return [];
+  }
+};
+
 export const fetchBookingById = async (id: string): Promise<Booking | null> => {
   try {
     const { data: booking, error } = await supabase
@@ -94,6 +115,39 @@ export const deleteBooking = async (id: string): Promise<void> => {
     }
   } catch (error) {
     console.error(`Error deleting booking with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+export const createBooking = async (bookingData: Partial<Booking>): Promise<Booking> => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert([bookingData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    throw error;
+  }
+};
+
+export const updateBooking = async (id: string, bookingData: Partial<Booking>): Promise<Booking> => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update(bookingData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error(`Error updating booking with ID ${id}:`, error);
     throw error;
   }
 };
@@ -568,7 +622,7 @@ export const createRoom = async (room: Partial<Room>): Promise<Room> => {
   try {
     const { data, error } = await supabase
       .from('rooms')
-      .insert(room)
+      .insert([room])
       .select()
       .single();
 
@@ -803,5 +857,220 @@ export const updateCleaningTaskStatus = async (id: string, status: string) => {
   } catch (error) {
     console.error(`Error updating cleaning task status for room ID ${id}:`, error);
     throw error;
+  }
+};
+
+// Add missing API functions
+export const fetchProperties = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    return [];
+  }
+};
+
+export const fetchRoomAvailability = async (startDate: string, endDate: string) => {
+  try {
+    // Fetch rooms
+    const { data: rooms, error: roomError } = await supabase
+      .from('rooms')
+      .select('*');
+
+    if (roomError) throw roomError;
+
+    // Fetch bookings for the date range
+    const { data: bookings, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*')
+      .or(`check_in.gte.${startDate},check_out.lte.${endDate}`)
+      .or(`check_in.lte.${startDate},check_out.gte.${startDate}`)
+      .or(`check_in.lte.${endDate},check_out.gte.${endDate}`);
+
+    if (bookingError) throw bookingError;
+
+    // Map rooms with availability data
+    const roomsWithAvailability = rooms.map(room => {
+      const roomBookings = bookings.filter(b => b.room_number === room.number);
+      
+      // Create an array of dates that are booked for this room
+      const bookedDates: string[] = [];
+      
+      roomBookings.forEach(booking => {
+        const checkIn = new Date(booking.check_in);
+        const checkOut = new Date(booking.check_out);
+        
+        // Add all dates between check-in and check-out to bookedDates
+        const currentDate = new Date(checkIn);
+        while (currentDate <= checkOut) {
+          bookedDates.push(currentDate.toISOString().split('T')[0]);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      });
+      
+      return {
+        id: room.id,
+        number: room.number,
+        type: room.type,
+        property: room.property_name,
+        property_name: room.property_name,
+        capacity: room.max_occupancy,
+        rate: room.base_rate,
+        bookedDates: [...new Set(bookedDates)], // Remove duplicates
+        bookings: roomBookings
+      };
+    });
+
+    return roomsWithAvailability;
+  } catch (error) {
+    console.error('Error fetching room availability:', error);
+    return [];
+  }
+};
+
+export const fetchSingleRoomAvailability = async (roomId: string, startDate: string, endDate: string) => {
+  try {
+    // Fetch the room
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('id', roomId)
+      .single();
+
+    if (roomError) throw roomError;
+
+    // Fetch bookings for this room within the date range
+    const { data: bookings, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('room_number', room.number)
+      .or(`check_in.gte.${startDate},check_out.lte.${endDate}`)
+      .or(`check_in.lte.${startDate},check_out.gte.${startDate}`)
+      .or(`check_in.lte.${endDate},check_out.gte.${endDate}`);
+
+    if (bookingError) throw bookingError;
+
+    // Create an array of dates that are booked for this room
+    const bookedDates: string[] = [];
+      
+    bookings.forEach(booking => {
+      const checkIn = new Date(booking.check_in);
+      const checkOut = new Date(booking.check_out);
+      
+      // Add all dates between check-in and check-out to bookedDates
+      const currentDate = new Date(checkIn);
+      while (currentDate <= checkOut) {
+        bookedDates.push(currentDate.toISOString().split('T')[0]);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    });
+    
+    return {
+      id: room.id,
+      number: room.number,
+      type: room.type,
+      property: room.property_name,
+      capacity: room.max_occupancy,
+      rate: room.base_rate,
+      bookedDates: [...new Set(bookedDates)], // Remove duplicates
+      bookings: bookings
+    };
+  } catch (error) {
+    console.error(`Error fetching availability for room ID ${roomId}:`, error);
+    return {
+      id: '',
+      number: '',
+      type: '',
+      property: '',
+      capacity: 0,
+      rate: 0,
+      bookedDates: [],
+      bookings: []
+    };
+  }
+};
+
+export const fetchDashboardStats = async () => {
+  try {
+    // Fetch room counts
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('status');
+
+    if (roomsError) throw roomsError;
+
+    const availableRooms = rooms.filter(room => room.status === 'available').length;
+    const totalRooms = rooms.length;
+
+    // Fetch today's check-ins and check-outs
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: todayCheckInsData, error: checkinError } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('check_in', today);
+
+    if (checkinError) throw checkinError;
+
+    const { data: todayCheckOutsData, error: checkoutError } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('check_out', today);
+
+    if (checkoutError) throw checkoutError;
+
+    // Calculate occupancy rate
+    const occupiedRooms = rooms.filter(room => room.status === 'occupied').length;
+    const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+
+    return {
+      availableRooms,
+      totalRooms,
+      todayCheckIns: todayCheckInsData?.length || 0,
+      todayCheckOuts: todayCheckOutsData?.length || 0,
+      occupancyRate,
+      weeklyOccupancyTrend: '+2%' // Mock value, would need to be calculated
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    return {
+      availableRooms: 0,
+      totalRooms: 0,
+      todayCheckIns: 0,
+      todayCheckOuts: 0,
+      occupancyRate: 0,
+      weeklyOccupancyTrend: '0%'
+    };
+  }
+};
+
+export const fetchOccupancyData = async () => {
+  try {
+    // This would typically fetch real data from the API
+    // For now, returning mock data
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    const mockData = [];
+    for (let i = 0; i < 30; i++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(currentDate.getDate() + i);
+      
+      mockData.push({
+        date: currentDate.toISOString().split('T')[0],
+        occupancy: Math.floor(Math.random() * 40) + 60 // Random number between 60-100
+      });
+    }
+    
+    return mockData;
+  } catch (error) {
+    console.error('Error fetching occupancy data:', error);
+    return [];
   }
 };

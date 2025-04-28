@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OccupancyChart } from "@/components/dashboard/OccupancyChart";
@@ -15,6 +16,15 @@ const Dashboard = () => {
     error
   } = useDashboardStats();
 
+  const dashboardStats = stats || {
+    availableRooms: 0,
+    totalRooms: 0,
+    todayCheckIns: 0,
+    todayCheckOuts: 0,
+    occupancyRate: 0,
+    weeklyOccupancyTrend: '0%'
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
@@ -27,15 +37,15 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard 
           title="Available Rooms" 
-          value={isLoading ? "Loading..." : `${stats?.availableRooms || 0}`} 
-          description={`Out of ${stats?.totalRooms || 0} total rooms`} 
+          value={isLoading ? "Loading..." : `${dashboardStats.availableRooms}`} 
+          description={`Out of ${dashboardStats.totalRooms} total rooms`} 
           icon={BedDouble} 
           className="animate-slide-up" 
         />
         
         <StatCard 
           title="Today's Check-ins" 
-          value={isLoading ? "Loading..." : `${stats?.todayCheckIns || 0}`} 
+          value={isLoading ? "Loading..." : `${dashboardStats.todayCheckIns}`} 
           description="Expected arrivals" 
           icon={ArrowDownToLine} 
           className="animate-slide-up [animation-delay:100ms]" 
@@ -43,7 +53,7 @@ const Dashboard = () => {
         
         <StatCard 
           title="Today's Check-outs" 
-          value={isLoading ? "Loading..." : `${stats?.todayCheckOuts || 0}`} 
+          value={isLoading ? "Loading..." : `${dashboardStats.todayCheckOuts}`} 
           description="Scheduled departures" 
           icon={ArrowUpFromLine} 
           className="animate-slide-up [animation-delay:200ms]" 
@@ -51,9 +61,9 @@ const Dashboard = () => {
         
         <StatCard 
           title="Occupancy Rate" 
-          value={isLoading ? "Loading..." : `${stats?.occupancyRate || 0}%`} 
+          value={isLoading ? "Loading..." : `${dashboardStats.occupancyRate}%`} 
           trend="up" 
-          trendValue={stats?.weeklyOccupancyTrend || "+0%"} 
+          trendValue={dashboardStats.weeklyOccupancyTrend} 
           icon={Percent} 
           className="animate-slide-up [animation-delay:300ms]" 
         />
