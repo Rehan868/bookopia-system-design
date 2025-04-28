@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAvailability } from '@/hooks/useAvailability';
 import { useBookings } from '@/hooks/useBookings';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RoomBooking {
   id: string;
@@ -123,9 +123,9 @@ const Availability = () => {
         return {
           id: room.id,
           number: room.number,
-          property: room.property_name || '',
+          property: room.property || room.property_name || '',
           type: room.type || '',
-          status: hasActiveBooking ? 'occupied' : room.status as 'available' | 'occupied' | 'maintenance',
+          status: hasActiveBooking ? 'occupied' : (room.status as 'available' | 'occupied' | 'maintenance') || 'available',
           bookings: roomBookings
         };
       });
@@ -342,7 +342,7 @@ const Availability = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Properties</SelectItem>
-                {availabilityData && [...new Set(availabilityData.map(room => room.property_name))].map(property => (
+                {availabilityData && [...new Set(availabilityData.map(room => room.property || room.property_name))].map(property => (
                   <SelectItem key={property} value={property}>{property}</SelectItem>
                 ))}
               </SelectContent>
@@ -426,7 +426,6 @@ const Availability = () => {
                         </span>
                       </div>
                       <div className="relative h-[80px]">
-                        {/* Grid cells for days */}
                         <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${displayDays}, 1fr)` }}>
                           {Array.from({ length: displayDays }).map((_, i) => {
                             const cellDate = addDays(viewStartDate, i);
@@ -444,7 +443,6 @@ const Availability = () => {
                           })}
                         </div>
                         
-                        {/* Bookings */}
                         {room.bookings.map((booking) => {
                           const style = calculateBookingStyle(booking, viewStartDate, displayDays);
                           if (!style) return null;
@@ -522,7 +520,6 @@ const Availability = () => {
                   })
                   .slice(0, 5)
                   .map(booking => {
-                    const room = availabilityData?.find(r => r.number === booking.room_number);
                     return (
                       <div key={booking.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-muted/50">
                         <div>
@@ -573,7 +570,6 @@ const Availability = () => {
                   })
                   .slice(0, 5)
                   .map(booking => {
-                    const room = availabilityData?.find(r => r.number === booking.room_number);
                     return (
                       <div key={booking.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-muted/50">
                         <div>

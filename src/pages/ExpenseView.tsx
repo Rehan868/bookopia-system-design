@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, FileEdit } from 'lucide-react';
+import { ArrowLeft, FileEdit, CreditCard } from 'lucide-react';
 import { useExpense } from '@/hooks/useExpenses';
 import { Badge } from '@/components/ui/badge';
 
@@ -97,7 +96,10 @@ const ExpenseView = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Payment Method</p>
-              <p className="font-medium">{expense.paymentMethod || 'Not specified'}</p>
+              <div className="flex items-center">
+                <CreditCard className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{expense.payment_method || 'Not specified'}</span>
+              </div>
             </div>
             {expense.notes && (
               <div>

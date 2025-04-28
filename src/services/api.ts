@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Room, Booking, User, Owner, Expense } from './supabase-types';
+import type { Room as RoomType, Booking, User, Owner, Expense } from './supabase-types';
 
 interface RoomBooking {
   id: string;
@@ -177,7 +177,8 @@ export const fetchRoomAvailability = async (startDate: string, endDate: string) 
       id: room.id,
       number: room.number,
       type: room.type,
-      property: room.property_name,
+      property_name: room.property_name,
+      property: room.property_name, // Add property field for compatibility
       capacity: room.max_occupancy,
       rate: room.base_rate,
       status: room.status
@@ -287,6 +288,7 @@ export const fetchRoomAvailability = async (startDate: string, endDate: string) 
         number: roomNumber,
         type: roomType,
         property: roomProperty,
+        property_name: roomProperty, // Add property_name for consistency
         capacity: roomCapacity,
         rate: roomRate,
         bookedDates: [...new Set(bookedDates)], // Remove duplicates
@@ -313,6 +315,7 @@ export const fetchSingleRoomAvailability = async (roomId: string, startDate: str
       number: room.number,
       type: room.type,
       property: room.property_name,
+      property_name: room.property_name, // Add for consistency
       capacity: room.max_occupancy,
       rate: room.base_rate,
       status: room.status
@@ -377,8 +380,10 @@ export const fetchSingleRoomAvailability = async (roomId: string, startDate: str
       number: `${Math.floor(Math.random() * 5) + 1}0${Math.floor(Math.random() * 9) + 1}`,
       type: ['Standard', 'Deluxe', 'Suite', 'Villa'][Math.floor(Math.random() * 4)],
       property: ['Seaside Resort', 'Mountain Lodge', 'City Center Hotel', 'Lake View Resort'][Math.floor(Math.random() * 4)],
+      property_name: ['Seaside Resort', 'Mountain Lodge', 'City Center Hotel', 'Lake View Resort'][Math.floor(Math.random() * 4)],
       rate: Math.floor(Math.random() * 150) + 100,
-      capacity: Math.floor(Math.random() * 4) + 1
+      capacity: Math.floor(Math.random() * 4) + 1,
+      status: 'available' // Add status field
     };
     
     // Generate bookings for this room
@@ -555,6 +560,7 @@ export const fetchBookingById = async (id: string): Promise<Booking> => {
       remaining_amount: Math.floor(Math.random() * 200),
       status: ['confirmed', 'pending', 'checked-in', 'completed'][Math.floor(Math.random() * 4)],
       payment_status: ['paid', 'partially_paid', 'pending'][Math.floor(Math.random() * 3)],
+      guest_document: null, // Add missing field
       created_at: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString(),
       updated_at: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
       notes: `Mock booking details for ID ${id}`
@@ -599,6 +605,7 @@ export const fetchBookings = async (): Promise<Booking[]> => {
       remaining_amount: 50,
       status: 'confirmed',
       payment_status: 'paid',
+      guest_document: null, // Add missing field
       created_at: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date(Date.now() - i * 12 * 60 * 60 * 1000).toISOString(),
       notes: `Mock booking ${i + 1}`
@@ -610,12 +617,12 @@ export const fetchBookings = async (): Promise<Booking[]> => {
 
 export const fetchTodayCheckins = async (): Promise<Booking[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    const todayDate = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
 
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .eq('check_in', today);
+      .eq('check_in', todayDate);
 
     if (error) throw error;
     return data;
@@ -623,13 +630,14 @@ export const fetchTodayCheckins = async (): Promise<Booking[]> => {
     console.error('Error fetching today check-ins:', error);
 
     // Fallback to mock data in case of an error
+    const todayDate = new Date().toISOString().split('T')[0];
     const mockCheckins: Booking[] = Array.from({ length: 5 }, (_, i) => ({
       id: `checkin-${i + 1}`,
       booking_number: `CHK${i + 1}`,
       guest_name: `Guest ${i + 1}`,
       guest_email: `guest${i + 1}@example.com`,
       guest_phone: `+1234567890${i}`,
-      check_in: today,
+      check_in: todayDate,
       check_out: new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       room_number: `${i + 101}`,
       property: 'Mock Property',
@@ -646,6 +654,7 @@ export const fetchTodayCheckins = async (): Promise<Booking[]> => {
       remaining_amount: 50,
       status: 'confirmed',
       payment_status: 'paid',
+      guest_document: null, // Add missing field
       created_at: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date(Date.now() - i * 12 * 60 * 60 * 1000).toISOString(),
       notes: `Mock check-in ${i + 1}`
@@ -657,12 +666,12 @@ export const fetchTodayCheckins = async (): Promise<Booking[]> => {
 
 export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    const todayDate = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
 
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
-      .eq('check_out', today);
+      .eq('check_out', todayDate);
 
     if (error) throw error;
     return data;
@@ -670,6 +679,7 @@ export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
     console.error('Error fetching today check-outs:', error);
 
     // Fallback to mock data in case of an error
+    const todayDate = new Date().toISOString().split('T')[0];
     const mockCheckouts: Booking[] = Array.from({ length: 5 }, (_, i) => ({
       id: `checkout-${i + 1}`,
       booking_number: `CHKOUT${i + 1}`,
@@ -677,7 +687,7 @@ export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
       guest_email: `guest${i + 1}@example.com`,
       guest_phone: `+1234567890${i}`,
       check_in: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      check_out: today,
+      check_out: todayDate,
       room_number: `${i + 101}`,
       property: 'Mock Property',
       adults: 2,
@@ -693,6 +703,7 @@ export const fetchTodayCheckouts = async (): Promise<Booking[]> => {
       remaining_amount: 0,
       status: 'completed',
       payment_status: 'paid',
+      guest_document: null, // Add missing field
       created_at: new Date(Date.now() - (i + 2) * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
       notes: `Mock check-out ${i + 1}`
@@ -739,6 +750,7 @@ export const fetchRecentBookings = async (limit: number = 5): Promise<Booking[]>
       remaining_amount: 50,
       status: 'confirmed',
       payment_status: 'paid',
+      guest_document: null, // Add missing field
       created_at: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date(Date.now() - i * 12 * 60 * 60 * 1000).toISOString(),
       notes: `Mock recent booking ${i + 1}`
@@ -764,6 +776,26 @@ export const fetchDashboardStats = async () => {
 
     if (roomsError) throw roomsError;
 
+    // Fetch today's checkins
+    const todayDate = new Date().toISOString().split('T')[0];
+    const { data: todayCheckins, error: checkinsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('check_in', todayDate);
+    
+    if (checkinsError) throw checkinsError;
+    
+    // Fetch today's checkouts
+    const { data: todayCheckouts, error: checkoutsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('check_out', todayDate);
+    
+    if (checkoutsError) throw checkoutsError;
+    
+    // Calculate available rooms
+    const availableRooms = rooms.filter(room => room.status === 'available').length;
+    
     // Fetch total revenue
     const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.amount_paid || 0), 0);
 
@@ -772,15 +804,29 @@ export const fetchDashboardStats = async () => {
     const bookedNights = bookings.reduce((sum, booking) => {
       const checkIn = new Date(booking.check_in);
       const checkOut = new Date(booking.check_out);
-      return sum + Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      return sum + Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
     }, 0);
     const occupancyRate = totalRoomNights > 0 ? (bookedNights / totalRoomNights) * 100 : 0;
+
+    // Generate weekly occupancy trend data
+    const weeklyOccupancyTrend = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - 6 + i);
+      return {
+        date: date.toISOString().split('T')[0],
+        occupancy: Math.floor(Math.random() * 30) + 50
+      };
+    });
 
     return {
       totalBookings: bookings.length,
       totalRooms: rooms.length,
+      availableRooms,
+      todayCheckIns: todayCheckins.length,
+      todayCheckOuts: todayCheckouts.length,
       totalRevenue,
       occupancyRate: Math.round(occupancyRate),
+      weeklyOccupancyTrend
     };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
@@ -789,8 +835,15 @@ export const fetchDashboardStats = async () => {
     return {
       totalBookings: 100,
       totalRooms: 50,
+      availableRooms: 30,
+      todayCheckIns: 5,
+      todayCheckOuts: 7,
       totalRevenue: 50000,
       occupancyRate: 75,
+      weeklyOccupancyTrend: Array.from({ length: 7 }, (_, i) => ({
+        date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        occupancy: Math.floor(Math.random() * 30) + 50
+      }))
     };
   }
 };
