@@ -1,130 +1,219 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Room } from '@/services/supabase-types';
-import { fetchRooms, fetchRoomById, createRoom, updateRoom, deleteRoom, updateRoomStatus } from '@/services/api';
+import { supabase } from '@/integrations/supabase/client';
 
-export function useRooms() {
-  const [data, setData] = useState<Room[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
-
-  const fetchRoomsData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const rooms = await fetchRooms();
-      setData(rooms);
-      return rooms;
-    } catch (err) {
-      console.error('Error in useRooms:', err);
-      setError(err);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+export const useRooms = () => {
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    fetchRoomsData();
-  }, [fetchRoomsData]);
-
-  const addRoom = useCallback(async (roomData: Partial<Room>) => {
-    try {
-      const newRoom = await createRoom(roomData);
-      setData(prevData => prevData ? [...prevData, newRoom] : [newRoom]);
-      return newRoom;
-    } catch (err) {
-      console.error('Error adding room:', err);
-      setError(err);
-      return null;
-    }
-  }, []);
-
-  const editRoom = useCallback(async (id: string, roomData: Partial<Room>) => {
-    try {
-      const updatedRoom = await updateRoom(id, roomData);
-      setData(prevData => 
-        prevData 
-          ? prevData.map(room => room.id === id ? updatedRoom : room) 
-          : prevData
-      );
-      return updatedRoom;
-    } catch (err) {
-      console.error(`Error updating room with ID ${id}:`, err);
-      setError(err);
-      return null;
-    }
-  }, []);
-
-  const removeRoom = useCallback(async (id: string) => {
-    try {
-      await deleteRoom(id);
-      setData(prevData => 
-        prevData 
-          ? prevData.filter(room => room.id !== id) 
-          : prevData
-      );
-      return true;
-    } catch (err) {
-      console.error(`Error deleting room with ID ${id}:`, err);
-      setError(err);
-      return false;
-    }
-  }, []);
-
-  const changeRoomStatus = useCallback(async (id: string, status: string) => {
-    try {
-      const updatedRoom = await updateRoomStatus(id, status);
-      setData(prevData => 
-        prevData 
-          ? prevData.map(room => room.id === id ? { ...room, status } : room) 
-          : prevData
-      );
-      return updatedRoom;
-    } catch (err) {
-      console.error(`Error updating room status for ID ${id}:`, err);
-      setError(err);
-      return null;
-    }
-  }, []);
-
-  return { 
-    data, 
-    isLoading, 
-    error, 
-    addRoom, 
-    editRoom, 
-    removeRoom, 
-    changeRoomStatus,
-    refreshRooms: fetchRoomsData
-  };
-}
-
-export function useRoom(id: string) {
-  const [data, setData] = useState<Room | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
-
-  useEffect(() => {
-    const getRoom = async () => {
-      if (!id) {
-        setIsLoading(false);
-        setError(new Error('No room ID provided'));
-        return;
-      }
-
+    const fetchRooms = async () => {
       try {
         setIsLoading(true);
-        const room = await fetchRoomById(id);
-        setData(room);
-      } catch (err) {
-        console.error(`Error in useRoom for ID ${id}:`, err);
-        setError(err);
+        
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Map the data to ensure it matches the Room type
+        const mappedRooms: Room[] = data.map((room: any) => ({
+          id: room.id,
+          number: room.number,
+          type: room.type,
+          property_name: room.property_name,
+          max_occupancy: room.max_occupancy,
+          base_rate: room.base_rate,
+          status: room.status,
+          property_id: room.property_id,
+          owner_id: room.owner_id,
+          description: room.description,
+          amenities: room.amenities || [],
+          image: room.image,
+          created_at: room.created_at,
+          updated_at: room.updated_at,
+          // Additional UI fields
+          property: room.property_name,
+          capacity: room.max_occupancy,
+          rate: room.base_rate,
+          floor: ''
+        }));
+        
+        setRooms(mappedRooms);
+      } catch (err: any) {
+        console.error('Error fetching rooms:', err);
+        setError(err.message || 'Failed to fetch rooms');
       } finally {
         setIsLoading(false);
       }
     };
-
-    getRoom();
-  }, [id]);
-
-  return { data, isLoading, error };
-}
+    
+    fetchRooms();
+  }, []);
+  
+  // Add a room
+  const addRoom = async (roomData: Partial<Room>) => {
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert([roomData])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Map to ensure it matches Room type
+      const newRoom: Room = {
+        id: data[0].id,
+        number: data[0].number,
+        type: data[0].type,
+        property_name: data[0].property_name,
+        max_occupancy: data[0].max_occupancy,
+        base_rate: data[0].base_rate,
+        status: data[0].status,
+        property_id: data[0].property_id,
+        owner_id: data[0].owner_id,
+        description: data[0].description,
+        amenities: data[0].amenities || [],
+        image: data[0].image,
+        created_at: data[0].created_at,
+        updated_at: data[0].updated_at,
+        // Additional UI fields
+        property: data[0].property_name,
+        capacity: data[0].max_occupancy,
+        rate: data[0].base_rate,
+        floor: ''
+      };
+      
+      setRooms(prevData => [...prevData, newRoom]);
+      return newRoom;
+    } catch (err: any) {
+      console.error('Error adding room:', err);
+      throw err;
+    }
+  };
+  
+  // Update a room
+  const updateRoom = async (id: string, roomData: Partial<Room>) => {
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .update(roomData)
+        .eq('id', id)
+        .select();
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Map to ensure it matches Room type
+      const updatedRoom: Room = {
+        id: data[0].id,
+        number: data[0].number,
+        type: data[0].type,
+        property_name: data[0].property_name,
+        max_occupancy: data[0].max_occupancy,
+        base_rate: data[0].base_rate,
+        status: data[0].status,
+        property_id: data[0].property_id,
+        owner_id: data[0].owner_id,
+        description: data[0].description,
+        amenities: data[0].amenities || [],
+        image: data[0].image,
+        created_at: data[0].created_at,
+        updated_at: data[0].updated_at,
+        // Additional UI fields
+        property: data[0].property_name,
+        capacity: data[0].max_occupancy,
+        rate: data[0].base_rate,
+        floor: ''
+      };
+      
+      setRooms(prevData => prevData.map(room => room.id === id ? updatedRoom : room));
+      return updatedRoom;
+    } catch (err: any) {
+      console.error('Error updating room:', err);
+      throw err;
+    }
+  };
+  
+  // Delete a room
+  const deleteRoom = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setRooms(prevData => prevData.filter(room => room.id !== id));
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting room:', err);
+      throw err;
+    }
+  };
+  
+  // Get a single room by ID
+  const getRoom = async (id: string): Promise<Room> => {
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Map to ensure it matches Room type
+      const room: Room = {
+        id: data.id,
+        number: data.number,
+        type: data.type,
+        property_name: data.property_name,
+        max_occupancy: data.max_occupancy,
+        base_rate: data.base_rate,
+        status: data.status,
+        property_id: data.property_id,
+        owner_id: data.owner_id,
+        description: data.description,
+        amenities: data.amenities || [],
+        image: data.image,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        // Additional UI fields
+        property: data.property_name,
+        capacity: data.max_occupancy,
+        rate: data.base_rate,
+        floor: ''
+      };
+      
+      return room;
+    } catch (err: any) {
+      console.error('Error fetching room:', err);
+      throw err;
+    }
+  };
+  
+  return {
+    rooms,
+    isLoading,
+    error,
+    addRoom,
+    updateRoom,
+    deleteRoom,
+    getRoom
+  };
+};

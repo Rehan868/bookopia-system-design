@@ -15,6 +15,14 @@ export function CreateDemoUsers() {
     setIsLoading(true);
     setShowResults(false);
     try {
+      // First check if the edge function exists
+      const { data: functions } = await supabase.functions.listFunctions();
+      const functionExists = functions?.some(fn => fn.name === 'create-demo-users');
+      
+      if (!functionExists) {
+        throw new Error("The 'create-demo-users' edge function is not deployed. Please check your Supabase configuration.");
+      }
+      
       const { data, error } = await supabase.functions.invoke('create-demo-users');
       
       if (error) {
@@ -22,18 +30,34 @@ export function CreateDemoUsers() {
         throw error;
       }
       
-      setResults(data?.results || []);
+      console.log('Demo users creation response:', data);
+      
+      if (!data || !Array.isArray(data.results)) {
+        throw new Error("Invalid response format from the edge function");
+      }
+      
+      setResults(data.results || []);
       setShowResults(true);
       
-      toast({
-        title: "Success",
-        description: "Demo users have been created successfully!",
-      });
+      // Check if any users were actually created
+      const createdUsers = data.results.filter((result: any) => result.status === 'created');
+      
+      if (createdUsers.length > 0) {
+        toast({
+          title: "Success",
+          description: "Demo users have been created successfully!",
+        });
+      } else {
+        toast({
+          title: "Info",
+          description: "All demo users already exist. No new users were created.",
+        });
+      }
     } catch (err) {
       console.error('Error creating demo users:', err);
       toast({
         title: "Error",
-        description: "Failed to create demo users. Check console for details.",
+        description: err instanceof Error ? err.message : "Failed to create demo users. Check console for details.",
         variant: "destructive"
       });
     } finally {

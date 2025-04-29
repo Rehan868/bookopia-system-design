@@ -1,97 +1,70 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+
+import { useEffect, useState } from 'react';
+import { Owner, Room } from '@/services/supabase-types';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthError } from '@supabase/supabase-js';
+import { useAuth } from '@/hooks/use-auth';
 
-interface Owner {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  phone?: string;
-  avatar?: string;
-  properties: number;
-  revenue: number;
-  occupancy: number;
-  joinedDate?: string;
-  paymentDetails?: {
-    bank?: string;
-    accountNumber?: string;
-    routingNumber?: string;
-  };
-}
-
-interface Room {
-  id: string;
-  number: string;
-  owner_id: string;
-  type: string;
-  property: string;
-  status: 'available' | 'booked' | 'maintenance' | 'cleaning';
-}
-
-interface LoginResponse {
-  user: Owner;
-  session: any;
-}
-
+// Hook to fetch all owners
 export const useOwners = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]);
-  const { toast } = useToast();
-
-  const fetchOwners = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'owner');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchOwners = async () => {
+      try {
+        setIsLoading(true);
         
-      if (error) throw error;
-      
-      // Transform profiles data into the Owner format
-      const ownersData = data.map(profile => ({
-        id: profile.id,
-        name: profile.name || 'Owner',
-        email: profile.email || '',
-        role: profile.role,
-        phone: profile.phone || '',
-        avatar: profile.avatar_url,
-        properties: 0, // Default values, can be updated with actual data
-        revenue: 0,
-        occupancy: 0,
-        joinedDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : undefined
-      }));
-      
-      setOwners(ownersData);
-      return data;
-    } catch (error) {
-      console.error('Error fetching owners:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch owners",
-        variant: "destructive"
-      });
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  return {
-    owners,
-    isLoading,
-    fetchOwners
-  };
+        const { data, error } = await supabase
+          .from('owners')
+          .select('*');
+        
+        if (error) {
+          throw error;
+        }
+        
+        // Map Supabase response to match our Owner type
+        const mappedOwners: Owner[] = data.map(owner => ({
+          id: owner.id,
+          name: owner.name,
+          email: owner.email,
+          phone: owner.phone || null,
+          address: owner.address || null,
+          city: owner.city || null,
+          country: owner.country || null,
+          birthdate: owner.birthdate || null,
+          commission_rate: owner.commission_rate,
+          payment_details: owner.payment_details,
+          created_at: owner.created_at,
+          updated_at: owner.updated_at,
+          // Optional fields from the frontend usage
+          properties: 0,
+          revenue: 0,
+          occupancy: 0,
+          avatar: undefined,
+          joinedDate: owner.created_at
+        }));
+        
+        setOwners(mappedOwners);
+      } catch (err: any) {
+        console.error('Error fetching owners:', err);
+        setError(err.message || 'Failed to fetch owners');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchOwners();
+  }, []);
+  
+  return { owners, isLoading, error };
 };
 
-// Add the missing useOwner hook to fetch a single owner by ID
+// Hook to fetch an owner by ID
 export const useOwner = (id: string) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [data, setData] = useState<Owner | null>(null);
-  const { toast } = useToast();
+  const [owner, setOwner] = useState<Owner | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchOwner = async () => {
@@ -100,185 +73,198 @@ export const useOwner = (id: string) => {
         return;
       }
       
-      setIsLoading(true);
-      setError(null);
-      
       try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
+        setIsLoading(true);
+        
+        const { data, error } = await supabase
+          .from('owners')
           .select('*')
           .eq('id', id)
-          .eq('role', 'owner')
           .single();
-          
-        if (profileError) throw profileError;
         
-        if (!profileData) {
-          throw new Error('Owner not found');
+        if (error) {
+          throw error;
         }
         
-        // Fetch additional owner data like rooms, revenue, etc.
-        const { data: roomsData, error: roomsError } = await supabase
-          .from('rooms')
-          .select('*')
-          .eq('owner_id', id);
-          
-        if (roomsError) throw roomsError;
-        
-        // Calculate owner statistics
-        const properties = roomsData?.length || 0;
-        const revenue = Math.floor(Math.random() * 100000) + 10000; // Mock data
-        const occupancy = Math.floor(Math.random() * 30) + 70; // Mock data between 70-100%
-        
-        const owner: Owner = {
-          id: profileData.id,
-          name: profileData.name || 'Owner',
-          email: profileData.email || '',
-          role: profileData.role,
-          phone: profileData.phone || '',
-          avatar: profileData.avatar_url,
-          properties,
-          revenue,
-          occupancy,
-          joinedDate: profileData.created_at ? new Date(profileData.created_at).toISOString().split('T')[0] : undefined,
-          paymentDetails: {
-            bank: 'Chase Bank', // Mock data
-            accountNumber: '****4567',
-            routingNumber: '****8901'
-          }
+        // Map Supabase response to match our Owner type
+        const mappedOwner: Owner = {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          address: data.address || null,
+          city: data.city || null,
+          country: data.country || null,
+          birthdate: data.birthdate || null,
+          commission_rate: data.commission_rate,
+          payment_details: data.payment_details,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          // Optional fields from the frontend usage
+          properties: 0,
+          revenue: 0,
+          occupancy: 0,
+          avatar: undefined,
+          joinedDate: data.created_at
         };
         
-        setData(owner);
-      } catch (error) {
-        console.error('Error fetching owner:', error);
-        setError(error instanceof Error ? error : new Error('Failed to fetch owner details'));
-        toast({
-          title: "Error",
-          description: "Failed to fetch owner details",
-          variant: "destructive"
-        });
+        setOwner(mappedOwner);
+      } catch (err: any) {
+        console.error('Error fetching owner:', err);
+        setError(err.message || 'Failed to fetch owner');
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchOwner();
-  }, [id, toast]);
+  }, [id]);
   
-  return { data, isLoading, error };
+  return { owner, isLoading, error };
 };
 
+// Hook for owner login
 export const useOwnerLogin = () => {
-  const { toast } = useToast();
+  const { login } = useAuth();
   
-  const ownerLogin = async (email: string, password: string): Promise<LoginResponse> => {
+  const ownerLogin = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // First, attempt to log in with Supabase auth
+      await login(email, password);
       
-      if (error) throw error;
-      
-      if (!data.session || !data.user) {
-        throw new Error('No session or user returned');
-      }
-      
-      // Fetch profile to confirm user is an owner
-      const { data: profileData, error: profileError } = await supabase
+      // After successful login, check if the user is an owner
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
+        .select('role')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
         .single();
-        
-      if (profileError) throw profileError;
       
-      if (!profileData || profileData.role !== 'owner') {
-        // Sign out if not an owner
+      if (profile?.role !== 'owner') {
+        // If not an owner, sign out and throw an error
         await supabase.auth.signOut();
         throw new Error('Access denied. Only owners can access the owner portal.');
       }
       
-      const owner: Owner = {
-        id: data.user.id,
-        email: data.user.email || '',
-        name: profileData.name || 'Owner',
-        role: 'owner',
-        properties: 0, // Default values
-        revenue: 0,
-        occupancy: 0
-      };
-      
-      return {
-        user: owner,
-        session: data.session
-      };
+      // Successfully logged in as an owner
+      return true;
     } catch (error) {
-      console.error('Owner login error:', error);
-      if (error instanceof AuthError) {
-        throw error;
-      } else if (error instanceof Error) {
-        throw new Error(error.message);
-      } else {
-        throw new Error('An unknown error occurred during login');
-      }
+      // Re-throw any errors
+      throw error;
     }
   };
   
   return ownerLogin;
 };
 
-// Add the missing useOwnerRooms hook to fetch rooms for a specific owner
-export const useOwnerRooms = (ownerId: string) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [data, setData] = useState<Room[]>([]);
-  const { toast } = useToast();
+// Hook to fetch owner's properties
+export const useOwnerProperties = (ownerId?: string) => {
+  const [properties, setProperties] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
   
   useEffect(() => {
-    const fetchOwnerRooms = async () => {
-      if (!ownerId) {
+    const fetchOwnerProperties = async () => {
+      // Use authenticated user's ID if no ownerId is provided
+      const ownerToFetch = ownerId || (user?.role === 'owner' ? user.id : null);
+      
+      if (!ownerToFetch) {
         setIsLoading(false);
+        setError('No owner ID provided');
         return;
       }
       
-      setIsLoading(true);
-      setError(null);
+      try {
+        setIsLoading(true);
+        
+        // Fetch properties belonging to the owner
+        const { data, error } = await supabase
+          .from('properties')
+          .select('*')
+          .eq('owner_id', ownerToFetch);
+        
+        if (error) {
+          throw error;
+        }
+        
+        setProperties(data || []);
+      } catch (err: any) {
+        console.error('Error fetching owner properties:', err);
+        setError(err.message || 'Failed to fetch properties');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchOwnerProperties();
+  }, [ownerId, user]);
+  
+  return { properties, isLoading, error };
+};
+
+// Hook to fetch owner's rooms
+export const useOwnerRooms = () => {
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    const fetchOwnerRooms = async () => {
+      if (!user || user.role !== 'owner') {
+        setIsLoading(false);
+        setError('User is not authenticated as an owner');
+        return;
+      }
       
       try {
-        const { data: roomsData, error: roomsError } = await supabase
+        setIsLoading(true);
+        
+        // Fetch rooms belonging to the authenticated owner
+        const { data, error } = await supabase
           .from('rooms')
           .select('*')
-          .eq('owner_id', ownerId);
-          
-        if (roomsError) throw roomsError;
+          .eq('owner_id', user.id);
         
-        // Transform the data if needed
-        const formattedRooms = roomsData.map(room => ({
+        if (error) {
+          throw error;
+        }
+        
+        // Map the data to match our Room type
+        const mappedRooms = data.map((room: any) => ({
           id: room.id,
           number: room.number,
           owner_id: room.owner_id,
-          type: room.type || 'Standard',
-          property: room.property || 'Main Property',
-          status: room.status || 'available'
+          type: room.type,
+          property: room.property_name || '',
+          status: room.status,
+          // Add additional fields needed for the Room type
+          property_name: room.property_name,
+          max_occupancy: room.max_occupancy,
+          base_rate: room.base_rate,
+          description: room.description,
+          amenities: room.amenities || [],
+          image: room.image,
+          created_at: room.created_at,
+          updated_at: room.updated_at,
+          property_id: room.property_id,
+          // Optional UI-specific fields
+          capacity: room.max_occupancy,
+          rate: room.base_rate,
+          floor: ''
         }));
         
-        setData(formattedRooms);
-      } catch (error) {
-        console.error('Error fetching owner rooms:', error);
-        setError(error instanceof Error ? error : new Error('Failed to fetch owner rooms'));
-        toast({
-          title: "Error",
-          description: "Failed to fetch owner's rooms",
-          variant: "destructive"
-        });
+        setRooms(mappedRooms);
+      } catch (err: any) {
+        console.error('Error fetching owner rooms:', err);
+        setError(err.message || 'Failed to fetch rooms');
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchOwnerRooms();
-  }, [ownerId, toast]);
+  }, [user]);
   
-  return { data, isLoading, error };
+  return { rooms, isLoading, error };
 };
