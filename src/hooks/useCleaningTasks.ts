@@ -1,50 +1,51 @@
 
 import { useState, useEffect } from 'react';
-import { fetchCleaningStatuses, updateCleaningStatus } from '@/services/api';
+import { fetchCleaningTasks, updateCleaningTaskStatus } from '@/services/api';
 
-export const useCleaningTasks = () => {
+export function useCleaningTasks() {
   const [tasks, setTasks] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
+
   useEffect(() => {
-    const fetchTasks = async () => {
+    const getTasks = async () => {
       try {
         setIsLoading(true);
-        const data = await fetchCleaningStatuses();
-        setTasks(data);
-      } catch (err: any) {
+        const cleaningTasks = await fetchCleaningTasks();
+        setTasks(cleaningTasks);
+      } catch (err) {
         console.error('Error fetching cleaning tasks:', err);
-        setError(err.message || 'Failed to fetch cleaning tasks');
+        setError(err);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchTasks();
+
+    getTasks();
   }, []);
-  
-  const updateTaskStatus = async (taskId: string, status: string) => {
+
+  const updateStatus = async (taskId: string, newStatus: string) => {
     try {
-      const updatedTask = await updateCleaningStatus(taskId, status);
+      const updatedTask = await updateCleaningTaskStatus(taskId, newStatus);
       
+      // Update the task in the local state
       setTasks(prevTasks => 
         prevTasks.map(task => 
-          task.id === taskId ? { ...task, status } : task
+          task.id === taskId ? { ...task, status: newStatus } : task
         )
       );
       
       return updatedTask;
-    } catch (err: any) {
-      console.error('Error updating task status:', err);
+    } catch (err) {
+      console.error('Error updating cleaning task status:', err);
       throw err;
     }
   };
-  
-  return {
-    tasks,
-    isLoading,
+
+  return { 
+    tasks, 
+    isLoading, 
     error,
-    updateTaskStatus
+    updateStatus
   };
-};
+}

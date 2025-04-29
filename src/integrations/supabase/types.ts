@@ -361,7 +361,6 @@ export type Database = {
           email: string
           id: string
           name: string
-          password: string
           payment_details: string | null
           phone: string | null
           updated_at: string | null
@@ -376,7 +375,6 @@ export type Database = {
           email: string
           id?: string
           name: string
-          password?: string
           payment_details?: string | null
           phone?: string | null
           updated_at?: string | null
@@ -391,7 +389,6 @@ export type Database = {
           email?: string
           id?: string
           name?: string
-          password?: string
           payment_details?: string | null
           phone?: string | null
           updated_at?: string | null
@@ -419,39 +416,6 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          created_at: string | null
-          id: string
-          name: string | null
-          phone: string | null
-          position: string | null
-          role: string
-          updated_at: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string | null
-          id: string
-          name?: string | null
-          phone?: string | null
-          position?: string | null
-          role?: string
-          updated_at?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string | null
-          id?: string
-          name?: string | null
-          phone?: string | null
-          position?: string | null
-          role?: string
-          updated_at?: string | null
         }
         Relationships: []
       }

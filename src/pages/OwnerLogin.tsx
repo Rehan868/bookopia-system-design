@@ -1,14 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useOwnerLogin } from '@/hooks/useOwners';
-import { useAuth } from '@/hooks/use-auth';
-import { AuthError } from '@supabase/supabase-js';
-import { CreateDemoUsers } from '@/components/setup/CreateDemoUsers';
 
 export default function OwnerLogin() {
   const [email, setEmail] = useState('');
@@ -17,16 +14,6 @@ export default function OwnerLogin() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const ownerLogin = useOwnerLogin();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-
-  // Redirect if already authenticated as owner
-  useEffect(() => {
-    if (isAuthenticated && !authLoading && user?.role === 'owner') {
-      navigate('/owner/dashboard');
-    } else if (isAuthenticated && !authLoading && user?.role !== 'owner') {
-      navigate('/');
-    }
-  }, [isAuthenticated, authLoading, navigate, user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,47 +30,25 @@ export default function OwnerLogin() {
     setIsLoading(true);
     
     try {
-      await ownerLogin(email, password);
+      const { user } = await ownerLogin(email, password);
       
       toast({
         title: "Success!",
         description: "Welcome back to your owner portal."
       });
       
-      // Navigation happens in useEffect after auth state changes
-    } catch (error: unknown) {
+      navigate('/owner/dashboard');
+    } catch (error) {
       console.error("Login error:", error);
-      
-      let errorMessage = "Invalid credentials. Please try again.";
-      
-      if (error instanceof AuthError) {
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = "Invalid email or password. Please try again.";
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = "Please confirm your email address before logging in.";
-        }
-      } else if (error instanceof Error && error.message.includes('Access denied')) {
-        errorMessage = "Access denied. Only owners can access the owner portal.";
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Invalid credentials. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Show loading indicator while checking auth state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-muted">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted">
@@ -135,16 +100,6 @@ export default function OwnerLogin() {
               Login to Staff Portal
             </Link>
           </p>
-        </div>
-        
-        {/* Demo credentials */}
-        <div className="mt-8 p-4 bg-muted rounded-md">
-          <h3 className="font-medium text-sm mb-2">Demo Owner Account:</h3>
-          <p className="text-xs"><strong>Email:</strong> owner@example.com / password</p>
-        </div>
-        
-        <div className="mt-6">
-          <CreateDemoUsers />
         </div>
       </div>
     </div>

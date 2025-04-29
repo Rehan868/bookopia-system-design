@@ -1,349 +1,756 @@
-
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/hooks/use-auth';
-import { CreateDemoUsers } from '@/components/setup/CreateDemoUsers';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertCircle,
+  ArrowRight,
+  BadgePercent,
+  Building2,
+  Cloud,
+  CreditCard,
+  Globe,
+  Lock,
+  Mail,
+  Plus,
+  Save,
+  User,
+  Users
+} from 'lucide-react';
+import UserRoleManagement from '@/components/settings/UserRoleManagement';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { fetchProperties, fetchRoomTypes } from '@/services/api';
 
-export default function Settings() {
-  const [activeTab, setActiveTab] = useState("general");
+const Settings = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const [activeTab, setActiveTab] = useState('general');
+  
+  // Form states
+  const [companyName, setCompanyName] = useState('HotelManager Co.');
+  const [companyEmail, setCompanyEmail] = useState('info@hotelmanager.com');
+  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
+  const [currencyFormat, setCurrencyFormat] = useState('USD');
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [autoCheckout, setAutoCheckout] = useState(true);
+  
+  // More advanced settings form states
+  const [defaultCheckInTime, setDefaultCheckInTime] = useState('14:00');
+  const [defaultCheckOutTime, setDefaultCheckOutTime] = useState('11:00');
+  const [taxRate, setTaxRate] = useState('7.5');
+  const [reminderDays, setReminderDays] = useState('1');
 
-  const handleSave = () => {
-    toast({
-      title: "Settings saved",
-      description: "Your settings have been saved successfully.",
-    });
+  // State for managing dialogs
+  const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+  const [isRoomTypeDialogOpen, setIsRoomTypeDialogOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState(null);
+  const [editingRoomType, setEditingRoomType] = useState(null);
+
+  const [properties, setProperties] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+
+  useEffect(() => {
+    const loadProperties = async () => {
+      try {
+        const data = await fetchProperties();
+        setProperties(data);
+      } catch (error) {
+        console.error('Error loading properties:', error);
+      }
+    };
+
+    const loadRoomTypes = async () => {
+      try {
+        const data = await fetchRoomTypes();
+        setRoomTypes(data);
+      } catch (error) {
+        console.error('Error loading room types:', error);
+      }
+    };
+
+    loadProperties();
+    loadRoomTypes();
+  }, []);
+
+  const handleAddProperty = () => {
+    setEditingProperty(null);
+    setIsPropertyDialogOpen(true);
   };
 
-  return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your application settings</p>
-      </div>
+  const handleEditProperty = (property) => {
+    setEditingProperty(property);
+    setIsPropertyDialogOpen(true);
+  };
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-        </TabsList>
+  const handleAddRoomType = () => {
+    setEditingRoomType(null);
+    setIsRoomTypeDialogOpen(true);
+  };
+
+  const handleEditRoomType = (roomType) => {
+    setEditingRoomType(roomType);
+    setIsRoomTypeDialogOpen(true);
+  };
+  
+  const handleSaveGeneral = () => {
+    toast({
+      title: "Settings Saved",
+      description: "Your general settings have been updated successfully.",
+    });
+  };
+  
+  const handleSaveProperty = () => {
+    toast({
+      title: "Property Settings Saved",
+      description: "Your property settings have been updated successfully.",
+    });
+  };
+  
+  const handleSaveNotifications = () => {
+    toast({
+      title: "Notification Settings Saved",
+      description: "Your notification preferences have been updated.",
+    });
+  };
+  
+  const handleSaveUsers = () => {
+    toast({
+      title: "User Settings Saved",
+      description: "User access settings have been updated successfully.",
+    });
+  };
+  
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground mt-1">Manage your application preferences and configuration</p>
+      </div>
+      
+      <Tabs 
+        value={activeTab} 
+        onValueChange={setActiveTab} 
+        className="space-y-8"
+      >
+        <div className="bg-card border rounded-md p-1 sticky top-[72px] z-30 bg-background/95 backdrop-blur-sm">
+          <TabsList className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto w-full">
+            <TabsTrigger value="general" className="flex justify-start px-3 py-2 h-auto">
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span>General</span>
+                </div>
+                <span className="text-xs text-muted-foreground">Basic settings</span>
+              </div>
+            </TabsTrigger>
+            
+            <TabsTrigger value="property" className="flex justify-start px-3 py-2 h-auto">
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span>Properties</span>
+                </div>
+                <span className="text-xs text-muted-foreground">Location settings</span>
+              </div>
+            </TabsTrigger>
+            
+            <TabsTrigger value="notifications" className="flex justify-start px-3 py-2 h-auto">
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>Notifications</span>
+                </div>
+                <span className="text-xs text-muted-foreground">Email, SMS</span>
+              </div>
+            </TabsTrigger>
+            
+            <TabsTrigger value="users" className="flex justify-start px-3 py-2 h-auto">
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Users</span>
+                </div>
+                <span className="text-xs text-muted-foreground">Access control</span>
+              </div>
+            </TabsTrigger>
+          </TabsList>
+        </div>
         
-        <TabsContent value="general">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Information</CardTitle>
-                <CardDescription>Update your company details and contact information</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+        <TabsContent value="general" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+              <CardDescription>
+                Configure the basic settings for your hotel management system
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="company-name">Company Name</Label>
-                    <Input id="company-name" defaultValue="Hotel Manager" />
+                    <Input 
+                      id="company-name" 
+                      value={companyName} 
+                      onChange={(e) => setCompanyName(e.target.value)} 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      This will appear on all invoices and emails
+                    </p>
                   </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="company-email">Email</Label>
-                    <Input id="company-email" type="email" defaultValue="info@hotelmanager.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company-phone">Phone</Label>
-                    <Input id="company-phone" type="tel" defaultValue="+1 555 1234" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company-website">Website</Label>
-                    <Input id="company-website" type="url" defaultValue="https://hotelmanager.com" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-address">Address</Label>
-                  <Textarea id="company-address" defaultValue="123 Main Street, City, Country, 12345" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Application Settings</CardTitle>
-                <CardDescription>Configure general application settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date-format">Date Format</Label>
-                    <select id="date-format" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="currency">Currency</Label>
-                    <select id="currency" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="JPY">JPY (¥)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <select id="timezone" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                      <option value="UTC">UTC</option>
-                      <option value="EST">Eastern Time (ET)</option>
-                      <option value="CST">Central Time (CT)</option>
-                      <option value="MST">Mountain Time (MT)</option>
-                      <option value="PST">Pacific Time (PT)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tax-rate">Default Tax Rate (%)</Label>
-                    <Input id="tax-rate" type="number" min="0" max="100" step="0.01" defaultValue="5.00" />
+                    <Label htmlFor="company-email">Company Email</Label>
+                    <Input 
+                      id="company-email" 
+                      type="email" 
+                      value={companyEmail} 
+                      onChange={(e) => setCompanyEmail(e.target.value)} 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      This email will be used for system notifications
+                    </p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="checkin-time">Default Check-in Time</Label>
-                    <Input id="checkin-time" type="time" defaultValue="15:00" />
+                    <Label htmlFor="date-format">Date Format</Label>
+                    <Select 
+                      value={dateFormat} 
+                      onValueChange={setDateFormat}
+                    >
+                      <SelectTrigger id="date-format">
+                        <SelectValue placeholder="Select date format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                        <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                        <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="checkout-time">Default Check-out Time</Label>
-                    <Input id="checkout-time" type="time" defaultValue="11:00" />
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select 
+                      value={currencyFormat} 
+                      onValueChange={setCurrencyFormat}
+                    >
+                      <SelectTrigger id="currency">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD (C$)</SelectItem>
+                        <SelectItem value="AUD">AUD (A$)</SelectItem>
+                        <SelectItem value="JPY">JPY (¥)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Demo User Creation Card - Only shown to admins */}
-            {isAdmin && <CreateDemoUsers />}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>Configure how and when you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Email Notifications</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Booking Confirmations</p>
-                    <p className="text-sm text-muted-foreground">Receive emails when bookings are confirmed</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Check-in/Check-out Alerts</p>
-                    <p className="text-sm text-muted-foreground">Receive alerts about today's check-ins and check-outs</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Payment Notifications</p>
-                    <p className="text-sm text-muted-foreground">Get notified about payments and refunds</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">System Alerts</p>
-                    <p className="text-sm text-muted-foreground">Receive alerts about system updates and maintenance</p>
-                  </div>
-                  <Switch />
                 </div>
               </div>
               
+              <Separator />
+              
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">SMS Notifications</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Enable SMS Notifications</p>
-                    <p className="text-sm text-muted-foreground">Send critical alerts via SMS</p>
+                <h3 className="text-lg font-medium">System Behavior</h3>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="email-notifications">Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically send email notifications for bookings and check-ins
+                    </p>
                   </div>
-                  <Switch />
+                  <Switch
+                    id="email-notifications"
+                    checked={emailNotifications}
+                    onCheckedChange={setEmailNotifications}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sms-phone">SMS Phone Number</Label>
-                  <Input id="sms-phone" type="tel" placeholder="+1 555 1234" />
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="auto-checkout">Automatic Checkout</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically check out guests at the scheduled checkout time
+                    </p>
+                  </div>
+                  <Switch
+                    id="auto-checkout"
+                    checked={autoCheckout}
+                    onCheckedChange={setAutoCheckout}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="default-checkin">Default Check-in Time</Label>
+                    <Input 
+                      id="default-checkin" 
+                      type="time" 
+                      value={defaultCheckInTime} 
+                      onChange={(e) => setDefaultCheckInTime(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="default-checkout">Default Check-out Time</Label>
+                    <Input 
+                      id="default-checkout" 
+                      type="time" 
+                      value={defaultCheckOutTime} 
+                      onChange={(e) => setDefaultCheckOutTime(e.target.value)} 
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="tax-rate">Default Tax Rate (%)</Label>
+                    <Input 
+                      id="tax-rate" 
+                      type="number" 
+                      value={taxRate} 
+                      onChange={(e) => setTaxRate(e.target.value)} 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="reminder-days">Reminder Days</Label>
+                    <Input 
+                      id="reminder-days" 
+                      type="number" 
+                      value={reminderDays} 
+                      onChange={(e) => setReminderDays(e.target.value)} 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Days before check-in to send reminder emails
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <div className="px-6 py-4 flex justify-end gap-4 border-t">
+              <Button variant="outline">Cancel</Button>
+              <Button onClick={handleSaveGeneral} className="flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+            </div>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Management</CardTitle>
+              <CardDescription>
+                Configure backups and data export options
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Automated Backups</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    The system automatically backs up your data every day at midnight.
+                  </p>
+                  <Select defaultValue="daily">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Backup frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hourly">Hourly</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Data Export</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Export your system data in various formats.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline">Export as CSV</Button>
+                    <Button variant="outline">Export as JSON</Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 border rounded-md bg-amber-50">
+                <div className="flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <h4 className="font-medium text-amber-800">Data Retention Policy</h4>
+                    <p className="text-sm text-amber-700 mt-1">
+                      By default, the system retains booking data for 7 years. Audit logs are kept for 2 years.
+                      You can modify these settings in the security tab.
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="security">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Password & Authentication</CardTitle>
-                <CardDescription>Manage your password and login security settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input id="confirm-password" type="password" />
-                </div>
-                <div className="pt-4">
-                  <Button>Change Password</Button>
-                </div>
-
-                <div className="pt-6">
-                  <div className="flex items-center justify-between pb-4">
-                    <div>
-                      <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Session Timeout</p>
-                      <p className="text-sm text-muted-foreground">Automatically log out after 60 minutes of inactivity</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Access Log</CardTitle>
-                <CardDescription>View recent account activity and login attempts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-4 py-2 text-left">Date & Time</th>
-                          <th className="px-4 py-2 text-left">Activity</th>
-                          <th className="px-4 py-2 text-left">IP Address</th>
-                          <th className="px-4 py-2 text-left">Device</th>
+        <TabsContent value="property" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Property Management</CardTitle>
+              <CardDescription>
+                Configure your hotel properties and locations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Active Properties</h3>
+                
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left font-medium p-3">Name</th>
+                        <th className="text-left font-medium p-3">Address</th>
+                        <th className="text-left font-medium p-3">Rooms</th>
+                        <th className="text-right font-medium p-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {properties.map((property) => (
+                        <tr key={property.id} className="border-t">
+                          <td className="p-3 font-medium">{property.name}</td>
+                          <td className="p-3">{property.address}</td>
+                          <td className="p-3">{property.rooms}</td>
+                          <td className="p-3 text-right">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditProperty(property)}>Edit</Button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="px-4 py-2">Apr 29, 2023 - 10:23 AM</td>
-                          <td className="px-4 py-2">Login Successful</td>
-                          <td className="px-4 py-2">192.168.1.1</td>
-                          <td className="px-4 py-2">Windows / Chrome</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="px-4 py-2">Apr 28, 2023 - 5:41 PM</td>
-                          <td className="px-4 py-2">Password Changed</td>
-                          <td className="px-4 py-2">192.168.1.1</td>
-                          <td className="px-4 py-2">Windows / Chrome</td>
-                        </tr>
-                        <tr>
-                          <td className="px-4 py-2">Apr 27, 2023 - 9:15 AM</td>
-                          <td className="px-4 py-2">Login Successful</td>
-                          <td className="px-4 py-2">192.168.1.1</td>
-                          <td className="px-4 py-2">Windows / Chrome</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <Button variant="outline" className="w-full">View Full Activity Log</Button>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                
+                <Button onClick={handleAddProperty}>Add New Property</Button>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Room Types & Pricing</h3>
+                
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left font-medium p-3">Room Type</th>
+                        <th className="text-left font-medium p-3">Base Rate</th>
+                        <th className="text-left font-medium p-3">Max Occupancy</th>
+                        <th className="text-right font-medium p-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roomTypes.map((roomType, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-3 font-medium">{roomType.type}</td>
+                          <td className="p-3">${roomType.rate}</td>
+                          <td className="p-3">{roomType.capacity}</td>
+                          <td className="p-3 text-right">
+                            <Button size="sm" variant="ghost" onClick={() => handleEditRoomType(roomType)}>Edit</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <Button onClick={handleAddRoomType}>Add Room Type</Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
-        
-        <TabsContent value="advanced">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Data Management</CardTitle>
-                <CardDescription>Manage your data and export options</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Data Export</h3>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex-1">
-                      <p className="text-sm text-muted-foreground">Export all your data in CSV format</p>
+
+        {/* Property Dialog */}
+        <Dialog open={isPropertyDialogOpen} onOpenChange={setIsPropertyDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingProperty ? 'Edit Property' : 'Add Property'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label htmlFor="property-name">Property Name</Label>
+              <Input id="property-name" defaultValue={editingProperty?.name || ''} />
+
+              <Label htmlFor="property-address">Address</Label>
+              <Input id="property-address" defaultValue={editingProperty?.address || ''} />
+
+              <Label htmlFor="property-rooms">Number of Rooms</Label>
+              <Input id="property-rooms" type="number" defaultValue={editingProperty?.rooms || ''} />
+            </div>
+            <div className="flex justify-end gap-4 mt-4">
+              <Button variant="outline" onClick={() => setIsPropertyDialogOpen(false)}>Cancel</Button>
+              <Button>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Room Type Dialog */}
+        <Dialog open={isRoomTypeDialogOpen} onOpenChange={setIsRoomTypeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingRoomType ? 'Edit Room Type' : 'Add Room Type'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label htmlFor="room-type">Room Type</Label>
+              <Input id="room-type" defaultValue={editingRoomType?.type || ''} />
+
+              <Label htmlFor="base-rate">Base Rate</Label>
+              <Input id="base-rate" type="number" defaultValue={editingRoomType?.rate || ''} />
+
+              <Label htmlFor="max-occupancy">Max Occupancy</Label>
+              <Input id="max-occupancy" type="number" defaultValue={editingRoomType?.occupancy || ''} />
+            </div>
+            <div className="flex justify-end gap-4 mt-4">
+              <Button variant="outline" onClick={() => setIsRoomTypeDialogOpen(false)}>Cancel</Button>
+              <Button>Save</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Templates</CardTitle>
+              <CardDescription>
+                Configure the email and SMS templates sent to guests
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 space-y-4">
+                  <h3 className="text-lg font-medium">Email Templates</h3>
+                  <div className="rounded-md border overflow-hidden divide-y">
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Booking Confirmation</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
                     </div>
-                    <Button>Export Data</Button>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Check-in Reminder</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Check-out Reminder</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Thank You</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Cancellation</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="space-y-4 pt-6 border-t">
-                  <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex-1">
-                      <p className="font-medium">Delete All Data</p>
-                      <p className="text-sm text-muted-foreground">Permanently delete all your data</p>
+                <div className="flex-1 space-y-4">
+                  <h3 className="text-lg font-medium">SMS Templates</h3>
+                  <div className="rounded-md border overflow-hidden divide-y">
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Booking Confirmation</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
                     </div>
-                    <Button variant="destructive">Delete Data</Button>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Check-in Reminder</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                    <div className="p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="font-medium">Check-out Reminder</div>
+                      <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                        Edit <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <Button variant="outline">Add SMS Template</Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>System Settings</CardTitle>
-                <CardDescription>Advanced configuration options</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Enable Debug Mode</p>
-                    <p className="text-sm text-muted-foreground">Show detailed error messages and logs</p>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Template Variables</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use these variables in your templates to insert dynamic content:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{guest_name}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Guest's full name</p>
                   </div>
-                  <Switch />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Maintenance Mode</p>
-                    <p className="text-sm text-muted-foreground">Put the application in maintenance mode</p>
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{booking_ref}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Booking reference</p>
                   </div>
-                  <Switch />
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{check_in_date}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Check-in date</p>
+                  </div>
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{check_out_date}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Check-out date</p>
+                  </div>
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{room_type}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Room type name</p>
+                  </div>
+                  <div className="border rounded-md p-3">
+                    <code className="text-sm font-mono">{'{{room_number}}'}</code>
+                    <p className="text-xs text-muted-foreground mt-1">Room number</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Auto Backup</p>
-                    <p className="text-sm text-muted-foreground">Automatically backup data daily</p>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Email Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-sender">Sender Email</Label>
+                    <Input id="email-sender" defaultValue="bookings@hotelmanager.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-reply-to">Reply-to Email</Label>
+                    <Input id="email-reply-to" defaultValue="support@hotelmanager.com" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-footer">Email Footer Text</Label>
+                  <Textarea 
+                    id="email-footer" 
+                    defaultValue="HotelManager Inc. | 123 Hotel St, Miami, FL | (555) 123-4567" 
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <div className="px-6 py-4 flex justify-end gap-4 border-t">
+              <Button variant="outline">Cancel</Button>
+              <Button onClick={handleSaveNotifications} className="flex items-center gap-2">
+                <Save className="h-4 w-4" />
+                Save Notification Settings
+              </Button>
+            </div>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Events</CardTitle>
+              <CardDescription>
+                Configure when notifications are sent
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Booking Confirmation</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send an email when a booking is created or modified
+                    </p>
                   </div>
                   <Switch defaultChecked />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Check-in Reminder</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send a reminder before guest arrival
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Check-out Reminder</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send a reminder on the day of departure
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Post-stay Thank You</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send a thank you email after checkout
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Cancellation Notice</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send an email when a booking is cancelled
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label>Staff Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Send email notifications to staff for new bookings and changes
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="users" className="space-y-6">
+          <UserRoleManagement />
         </TabsContent>
       </Tabs>
-
-      <div className="flex justify-end">
-        <Button variant="outline" className="mr-2">Cancel</Button>
-        <Button onClick={handleSave}>Save Settings</Button>
-      </div>
     </div>
   );
-}
+};
+
+export default Settings;
