@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DateRange } from 'react-day-picker';
-import { format, isAfter, isBefore, isSameDay, addDays } from 'date-fns';
+import { format, isAfter, isBefore, isSameDay, addDays, startOfToday } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -299,47 +299,58 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
     });
   };
   
+  const isDateInPast = (date: Date) => {
+    const today = startOfToday();
+    return isBefore(date, today);
+  };
+  
   const isDateUnavailable = (date: Date) => {
+    // Don't allow selection of past dates
+    if (isDateInPast(date)) {
+      return true;
+    }
+    
+    // Check if the date is already booked
     return bookedDates.some(bookedDate => 
       isSameDay(date, bookedDate)
     );
   };
   
   const handleDateRangeChange = (range: DateRange | undefined) => {
-    if (range?.from) {
-      setDateRange(range);
-      setFormData(prev => {
-        const updatedData = {
-          ...prev,
-          checkIn: range.from!,
-          checkOut: range.to || range.from,
-        };
-        
-        if (range.to) {
-          const nights = Math.round((range.to.getTime() - range.from!.getTime()) / (1000 * 60 * 60 * 24));
-          const baseRate = ensureNumber(prev.baseRate);
-          const totalAmount = baseRate * nights;
-          const vat = totalAmount * 0.05;
-          const tourismFee = totalAmount * 0.03;
-          const commission = totalAmount * 0.1;
-          const netToOwner = totalAmount - vat - tourismFee - commission;
-          
-          return {
-            ...updatedData,
-            totalAmount,
-            vat,
-            tourismFee,
-            commission,
-            netToOwner,
-          };
-        }
-        
-        return updatedData;
-      });
+    if (!range) return;
+    
+    setDateRange(range);
+    setFormData(prev => {
+      const updatedData = {
+        ...prev,
+        checkIn: range.from || prev.checkIn,
+        checkOut: range.to || prev.checkOut,
+      };
       
-      if (formData.roomId && range.to) {
-        checkRoomAvailability(formData.roomId, range.from, range.to);
+      if (range.from && range.to) {
+        const nights = Math.round((range.to.getTime() - range.from.getTime()) / (1000 * 60 * 60 * 24));
+        const baseRate = ensureNumber(prev.baseRate);
+        const totalAmount = baseRate * nights;
+        const vat = totalAmount * 0.05;
+        const tourismFee = totalAmount * 0.03;
+        const commission = totalAmount * 0.1;
+        const netToOwner = totalAmount - vat - tourismFee - commission;
+        
+        return {
+          ...updatedData,
+          totalAmount,
+          vat,
+          tourismFee,
+          commission,
+          netToOwner,
+        };
       }
+      
+      return updatedData;
+    });
+    
+    if (formData.roomId && range.from && range.to) {
+      checkRoomAvailability(formData.roomId, range.from, range.to);
     }
   };
   
@@ -738,16 +749,20 @@ export function AddEditBookingForm({ mode, bookingData }: AddEditBookingFormProp
                             textDecoration: 'line-through'
                           }
                         }}
-                        className="pointer-events-auto"
+                        className="p-3 pointer-events-auto"
+                        fromDate={startOfToday()}
                       />
                     )}
                   </PopoverContent>
                 </Popover>
                 {bookedDates.length > 0 && (
                   <p className="text-xs text-amber-600 mt-1">
-                    * Dates highlighted in the calendar are already booked for this room.
+                    * Dates highlighted in red are already booked for this room.
                   </p>
                 )}
+                <p className="text-xs text-gray-500">
+                  Click once to select check-in date, click again to select check-out date.
+                </p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
