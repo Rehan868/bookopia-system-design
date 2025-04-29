@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
 import { AuthError } from '@supabase/supabase-js';
+import { CreateDemoUsers } from '@/components/setup/CreateDemoUsers';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -148,6 +149,10 @@ export default function Login() {
               <p><strong>Staff:</strong> staff@example.com / password</p>
             </div>
           </div>
+        </div>
+        
+        <div className="mt-6">
+          <CreateDemoUsers />
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useOwnerLogin } from '@/hooks/useOwners';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthError } from '@supabase/supabase-js';
+import { CreateDemoUsers } from '@/components/setup/CreateDemoUsers';
 
 export default function OwnerLogin() {
   const [email, setEmail] = useState('');
@@ -140,6 +141,10 @@ export default function OwnerLogin() {
         <div className="mt-8 p-4 bg-muted rounded-md">
           <h3 className="font-medium text-sm mb-2">Demo Owner Account:</h3>
           <p className="text-xs"><strong>Email:</strong> owner@example.com / password</p>
+        </div>
+        
+        <div className="mt-6">
+          <CreateDemoUsers />
         </div>
       </div>
     </div>

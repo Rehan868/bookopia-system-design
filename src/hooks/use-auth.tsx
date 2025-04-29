@@ -11,6 +11,7 @@ interface ProfileData {
   position: string | null;
   phone: string | null;
   avatar_url: string | null;
+  email?: string;
 }
 
 interface User {
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setSession(session);
         setIsAuthenticated(!!session);
         
@@ -63,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("Initial session check:", session?.user?.id);
         
         setSession(session);
         setIsAuthenticated(!!session);
@@ -91,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -103,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data) {
         const profileData = data as ProfileData;
+        console.log("Profile data fetched:", profileData);
         setUser({
           id: profileData.id,
           name: profileData.name || 'User',
@@ -112,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           phone: profileData.phone || undefined,
           avatar_url: profileData.avatar_url || undefined
         });
+      } else {
+        console.log("No profile data found for user:", userId);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -121,15 +128,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      console.log("Attempting login for:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error("Login error from Supabase:", error);
         throw error;
       }
 
+      console.log("Login successful:", data?.user?.id);
       return;
     } catch (error: any) {
       console.error('Login error:', error);
