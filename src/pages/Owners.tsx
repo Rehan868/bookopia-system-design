@@ -29,7 +29,7 @@ import {
 import { useOwners } from '@/hooks/useOwners';
 
 interface Owner {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   properties: number;
@@ -41,15 +41,19 @@ interface Owner {
 const Owners = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: owners, isLoading, error } = useOwners();
+  const { owners, isLoading, fetchOwners } = useOwners();
 
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || "");
   const [filteredOwners, setFilteredOwners] = useState<Owner[]>(owners || []);
 
+  // Fetch owners on component mount
   useEffect(() => {
-    if (owners) {
-      setFilteredOwners(owners);
-    }
+    fetchOwners();
+  }, [fetchOwners]);
+
+  useEffect(() => {
+    // Update filtered owners when owners data changes
+    setFilteredOwners(owners);
   }, [owners]);
 
   useEffect(() => {
@@ -66,7 +70,7 @@ const Owners = () => {
     const params = new URLSearchParams();
     if (searchQuery) params.set('q', searchQuery);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, owners]);
+  }, [searchQuery, owners, setSearchParams]);
 
   const getInitials = (name: string) => {
     return name
@@ -92,7 +96,7 @@ const Owners = () => {
     });
   };
   
-  const handleDeleteOwner = (ownerId: number) => {
+  const handleDeleteOwner = (ownerId: string | number) => {
     toast({
       title: "Owner Deleted",
       description: `Owner ID ${ownerId} has been removed.`,
@@ -102,10 +106,6 @@ const Owners = () => {
 
   if (isLoading) {
     return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error loading owners: {error.message}</div>;
   }
 
   return (

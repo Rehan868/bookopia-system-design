@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthError } from '@supabase/supabase-js';
@@ -9,6 +9,17 @@ interface Owner {
   name: string;
   email: string;
   role: string;
+  phone?: string;
+  avatar?: string;
+  properties: number;
+  revenue: number;
+  occupancy: number;
+  joinedDate?: string;
+  paymentDetails?: {
+    bank?: string;
+    accountNumber?: string;
+    routingNumber?: string;
+  };
 }
 
 interface LoginResponse {
@@ -31,7 +42,21 @@ export const useOwners = () => {
         
       if (error) throw error;
       
-      setOwners(data || []);
+      // Transform profiles data into the Owner format
+      const ownersData = data.map(profile => ({
+        id: profile.id,
+        name: profile.name || 'Owner',
+        email: profile.email || '',
+        role: profile.role,
+        phone: profile.phone || '',
+        avatar: profile.avatar_url,
+        properties: 0, // Default values, can be updated with actual data
+        revenue: 0,
+        occupancy: 0,
+        joinedDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : undefined
+      }));
+      
+      setOwners(ownersData);
       return data;
     } catch (error) {
       console.error('Error fetching owners:', error);
@@ -51,6 +76,88 @@ export const useOwners = () => {
     isLoading,
     fetchOwners
   };
+};
+
+// Add the missing useOwner hook to fetch a single owner by ID
+export const useOwner = (id: string) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [data, setData] = useState<Owner | null>(null);
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    const fetchOwner = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', id)
+          .eq('role', 'owner')
+          .single();
+          
+        if (profileError) throw profileError;
+        
+        if (!profileData) {
+          throw new Error('Owner not found');
+        }
+        
+        // Fetch additional owner data like rooms, revenue, etc.
+        const { data: roomsData, error: roomsError } = await supabase
+          .from('rooms')
+          .select('*')
+          .eq('owner_id', id);
+          
+        if (roomsError) throw roomsError;
+        
+        // Calculate owner statistics
+        const properties = roomsData?.length || 0;
+        const revenue = Math.floor(Math.random() * 100000) + 10000; // Mock data
+        const occupancy = Math.floor(Math.random() * 30) + 70; // Mock data between 70-100%
+        
+        const owner: Owner = {
+          id: profileData.id,
+          name: profileData.name || 'Owner',
+          email: profileData.email || '',
+          role: profileData.role,
+          phone: profileData.phone || '',
+          avatar: profileData.avatar_url,
+          properties,
+          revenue,
+          occupancy,
+          joinedDate: profileData.created_at ? new Date(profileData.created_at).toISOString().split('T')[0] : undefined,
+          paymentDetails: {
+            bank: 'Chase Bank', // Mock data
+            accountNumber: '****4567',
+            routingNumber: '****8901'
+          }
+        };
+        
+        setData(owner);
+      } catch (error) {
+        console.error('Error fetching owner:', error);
+        setError(error instanceof Error ? error : new Error('Failed to fetch owner details'));
+        toast({
+          title: "Error",
+          description: "Failed to fetch owner details",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchOwner();
+  }, [id, toast]);
+  
+  return { data, isLoading, error };
 };
 
 export const useOwnerLogin = () => {
@@ -88,7 +195,10 @@ export const useOwnerLogin = () => {
         id: data.user.id,
         email: data.user.email || '',
         name: profileData.name || 'Owner',
-        role: 'owner'
+        role: 'owner',
+        properties: 0, // Default values
+        revenue: 0,
+        occupancy: 0
       };
       
       return {

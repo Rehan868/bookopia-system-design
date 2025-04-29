@@ -1,170 +1,139 @@
 
 import React from 'react';
-import { format } from 'date-fns';
+import { useParams } from 'react-router-dom';
+import { useBooking } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Booking } from '@/services/supabase-types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 export interface BookingDetailsProps {
-  booking: Booking;
+  booking?: any; // Optional prop for the parent component to pass data directly
 }
 
-export const BookingDetails: React.FC<BookingDetailsProps> = ({ booking }) => {
-  const { toast } = useToast();
+export const BookingDetails: React.FC<BookingDetailsProps> = ({ booking: propBooking }) => {
+  const { id } = useParams<{ id: string }>();
+  const { data: fetchedBooking, isLoading, error } = useBooking(id || '');
   
-  if (!booking) {
-    return <div>No booking details available</div>;
-  }
-
-  const handleStatusChange = (newStatus: string) => {
-    toast({
-      title: 'Status Updated',
-      description: `Booking status changed to ${newStatus}`,
-    });
-  };
+  // Use either the prop booking or the fetched booking
+  const booking = propBooking || fetchedBooking;
+  
+  if (!booking) return null;
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex flex-col lg:flex-row justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">
-            Booking #{booking.booking_number}
-          </h1>
-          <p className="text-gray-600">
-            Created on {format(new Date(booking.created_at), 'PPP')}
-          </p>
+          <h1 className="text-2xl font-bold">Booking #{booking?.booking_number}</h1>
+          <p className="text-muted-foreground">{booking?.guest_name}</p>
         </div>
-        <div className="flex flex-wrap gap-2 mt-4 lg:mt-0">
-          <Button 
-            variant="outline" 
-            onClick={() => handleStatusChange('checked-in')}
-          >
-            Check In
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => handleStatusChange('checked-out')}
-          >
-            Check Out
-          </Button>
-          <Button 
-            variant="destructive" 
-            onClick={() => handleStatusChange('cancelled')}
-          >
-            Cancel Booking
-          </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant={
+            booking?.status === 'confirmed' ? 'default' :
+            booking?.status === 'pending' ? 'secondary' :
+            booking?.status === 'cancelled' ? 'destructive' : 
+            'outline'
+          }>
+            {booking?.status}
+          </Badge>
+          
+          <Button variant="outline" size="sm">Edit</Button>
+          <Button size="sm">Check In</Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="bg-primary/10 p-4">
-            <h2 className="font-semibold text-lg">Guest Information</h2>
-          </div>
-          <div className="p-4 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Guest Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-600">Name</p>
-              <p className="font-medium">{booking.guest_name}</p>
+              <p className="text-sm text-muted-foreground">Name</p>
+              <p className="font-medium">{booking?.guest_name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Email</p>
-              <p className="font-medium">{booking.guest_email}</p>
+              <p className="text-sm text-muted-foreground">Email</p>
+              <p className="font-medium">{booking?.guest_email}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Phone</p>
-              <p className="font-medium">{booking.guest_phone || 'N/A'}</p>
+              <p className="text-sm text-muted-foreground">Phone</p>
+              <p className="font-medium">{booking?.guest_phone || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Guests</p>
-              <p className="font-medium">{booking.adults} Adults, {booking.children} Children</p>
+              <p className="text-sm text-muted-foreground">Guests</p>
+              <p className="font-medium">{booking?.adults} Adults, {booking?.children} Children</p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="bg-primary/10 p-4">
-            <h2 className="font-semibold text-lg">Booking Details</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="flex justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Check In</p>
-                <p className="font-medium">{format(new Date(booking.check_in), 'PPP')}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Check Out</p>
-                <p className="font-medium">{format(new Date(booking.check_out), 'PPP')}</p>
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Booking Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Room</p>
+              <p className="font-medium">{booking?.room_number}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Property</p>
-              <p className="font-medium">{booking.property}</p>
+              <p className="text-sm text-muted-foreground">Property</p>
+              <p className="font-medium">{booking?.property}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Room</p>
-              <p className="font-medium">{booking.room_number}</p>
+              <p className="text-sm text-muted-foreground">Check-in</p>
+              <p className="font-medium">{new Date(booking?.check_in).toLocaleDateString()}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <div className="mt-1">
-                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                  {booking.status}
-                </span>
-              </div>
+              <p className="text-sm text-muted-foreground">Check-out</p>
+              <p className="font-medium">{new Date(booking?.check_out).toLocaleDateString()}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="bg-primary/10 p-4">
-            <h2 className="font-semibold text-lg">Payment Information</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="flex justify-between">
-              <p className="text-sm text-gray-600">Base Rate</p>
-              <p className="font-medium">${booking.base_rate}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-sm text-gray-600">VAT</p>
-              <p className="font-medium">${booking.vat || 0}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-sm text-gray-600">Tourism Fee</p>
-              <p className="font-medium">${booking.tourism_fee || 0}</p>
-            </div>
-            <div className="flex justify-between border-t pt-2">
-              <p className="font-semibold">Total Amount</p>
-              <p className="font-semibold">${booking.amount}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-sm text-gray-600">Paid</p>
-              <p className="font-medium text-green-600">${booking.amount_paid || 0}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-sm text-gray-600">Balance</p>
-              <p className="font-medium text-red-600">${booking.remaining_amount || 0}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Payment Status</p>
-              <div className="mt-1">
-                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                  {booking.payment_status}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {booking.notes && (
-        <div className="mt-6 bg-white rounded-lg shadow overflow-hidden">
-          <div className="bg-primary/10 p-4">
-            <h2 className="font-semibold text-lg">Notes</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between">
+            <span>Base Rate</span>
+            <span>${booking?.base_rate?.toFixed(2)}</span>
           </div>
-          <div className="p-4">
-            <p>{booking.notes}</p>
+          <div className="flex justify-between">
+            <span>VAT</span>
+            <span>${booking?.vat?.toFixed(2) || '0.00'}</span>
           </div>
-        </div>
+          <div className="flex justify-between">
+            <span>Tourism Fee</span>
+            <span>${booking?.tourism_fee?.toFixed(2) || '0.00'}</span>
+          </div>
+          <Separator />
+          <div className="flex justify-between font-bold">
+            <span>Total</span>
+            <span>${booking?.amount?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-green-600">
+            <span>Paid Amount</span>
+            <span>${booking?.amount_paid?.toFixed(2) || '0.00'}</span>
+          </div>
+          <div className="flex justify-between text-amber-600">
+            <span>Remaining Amount</span>
+            <span>${booking?.remaining_amount?.toFixed(2) || '0.00'}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {booking?.notes && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>{booking?.notes}</p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
