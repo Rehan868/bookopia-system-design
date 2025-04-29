@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +19,15 @@ interface Owner {
     accountNumber?: string;
     routingNumber?: string;
   };
+}
+
+interface Room {
+  id: string;
+  number: string;
+  owner_id: string;
+  type: string;
+  property: string;
+  status: 'available' | 'booked' | 'maintenance' | 'cleaning';
 }
 
 interface LoginResponse {
@@ -218,4 +226,59 @@ export const useOwnerLogin = () => {
   };
   
   return ownerLogin;
+};
+
+// Add the missing useOwnerRooms hook to fetch rooms for a specific owner
+export const useOwnerRooms = (ownerId: string) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [data, setData] = useState<Room[]>([]);
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    const fetchOwnerRooms = async () => {
+      if (!ownerId) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const { data: roomsData, error: roomsError } = await supabase
+          .from('rooms')
+          .select('*')
+          .eq('owner_id', ownerId);
+          
+        if (roomsError) throw roomsError;
+        
+        // Transform the data if needed
+        const formattedRooms = roomsData.map(room => ({
+          id: room.id,
+          number: room.number,
+          owner_id: room.owner_id,
+          type: room.type || 'Standard',
+          property: room.property || 'Main Property',
+          status: room.status || 'available'
+        }));
+        
+        setData(formattedRooms);
+      } catch (error) {
+        console.error('Error fetching owner rooms:', error);
+        setError(error instanceof Error ? error : new Error('Failed to fetch owner rooms'));
+        toast({
+          title: "Error",
+          description: "Failed to fetch owner's rooms",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchOwnerRooms();
+  }, [ownerId, toast]);
+  
+  return { data, isLoading, error };
 };
