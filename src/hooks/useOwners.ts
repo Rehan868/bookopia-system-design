@@ -1,96 +1,111 @@
 
-import { Owner } from '@/services/supabase-types';
-import { fetchOwners } from '@/services/api';
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { AuthError } from '@supabase/supabase-js';
+
+interface Owner {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface LoginResponse {
+  user: Owner;
+  session: any;
+}
 
 export const useOwners = () => {
-  return useQuery({
-    queryKey: ["owners"],
-    queryFn: async () => {
-      return await fetchOwners();
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-};
+  const [isLoading, setIsLoading] = useState(false);
+  const [owners, setOwners] = useState<Owner[]>([]);
+  const { toast } = useToast();
 
-export const useOwner = (id: string) => {
-  return useQuery({
-    queryKey: ["owner", id],
-    queryFn: async () => {
+  const fetchOwners = useCallback(async () => {
+    setIsLoading(true);
+    try {
       const { data, error } = await supabase
-        .from('owners')
-        .select('*, rooms(*)')
-        .eq('id', id)
-        .single();
+        .from('profiles')
+        .select('*')
+        .eq('role', 'owner');
+        
+      if (error) throw error;
       
-      if (error) {
-        throw new Error(`Owner with ID ${id} not found: ${error.message}`);
-      }
-      
-      return data as Owner;
-    },
-    enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-};
-
-// Add function to login owner
-export const useOwnerLogin = () => {
-  return async (email: string, password: string) => {
-    // Check if owner exists and password matches
-    const { data: owner, error: ownerError } = await supabase
-      .from('owners')
-      .select('id, email, name')
-      .eq('email', email)
-      .single();
-
-    if (ownerError) {
-      throw new Error("Invalid credentials");
+      setOwners(data || []);
+      return data;
+    } catch (error) {
+      console.error('Error fetching owners:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch owners",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setIsLoading(false);
     }
+  }, [toast]);
 
-    // Sign in with Supabase auth
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      throw new Error("Invalid credentials");
-    }
-
-    // Store owner ID in localStorage so we can use it to fetch owner-specific data
-    localStorage.setItem('ownerId', owner.id);
-    
-    return {
-      user: {
-        id: owner.id,
-        name: owner.name,
-        email: owner.email,
-        role: 'owner',
-      },
-      session: data.session,
-    };
+  return {
+    owners,
+    isLoading,
+    fetchOwners
   };
 };
 
-// Add function to get owner-specific rooms
-export const useOwnerRooms = (ownerId: string) => {
-  return useQuery({
-    queryKey: ["ownerRooms", ownerId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('owner_id', ownerId);
+export const useOwnerLogin = () => {
+  const { toast } = useToast();
+  
+  const ownerLogin = async (email: string, password: string): Promise<LoginResponse> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      if (error) {
-        throw new Error(`Failed to fetch owner rooms: ${error.message}`);
+      if (error) throw error;
+      
+      if (!data.session || !data.user) {
+        throw new Error('No session or user returned');
       }
       
-      return data;
-    },
-    enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+      // Fetch profile to confirm user is an owner
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+        
+      if (profileError) throw profileError;
+      
+      if (!profileData || profileData.role !== 'owner') {
+        // Sign out if not an owner
+        await supabase.auth.signOut();
+        throw new Error('Access denied. Only owners can access the owner portal.');
+      }
+      
+      const owner: Owner = {
+        id: data.user.id,
+        email: data.user.email || '',
+        name: profileData.name || 'Owner',
+        role: 'owner'
+      };
+      
+      return {
+        user: owner,
+        session: data.session
+      };
+    } catch (error) {
+      console.error('Owner login error:', error);
+      if (error instanceof AuthError) {
+        throw error;
+      } else if (error instanceof Error) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('An unknown error occurred during login');
+      }
+    }
+  };
+  
+  return ownerLogin;
 };

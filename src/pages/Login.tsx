@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/hooks/use-auth';
+import { AuthError } from '@supabase/supabase-js';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -12,14 +14,18 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
-      navigate('/');
+      if (user?.role === 'owner') {
+        navigate('/owner/dashboard');
+      } else {
+        navigate('/');
+      }
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +43,29 @@ export default function Login() {
     
     try {
       await login(email, password);
+      
       toast({
         title: "Success!",
         description: "You have successfully logged in."
       });
-      navigate('/');
-    } catch (error) {
+      
+      // Navigation happens in useEffect after auth state changes
+    } catch (error: unknown) {
+      console.error("Login error:", error);
+      
+      let errorMessage = "Invalid credentials. Please try again.";
+      
+      if (error instanceof AuthError) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Please confirm your email address before logging in.";
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Invalid credentials. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -112,6 +132,22 @@ export default function Login() {
               Login to Owner Portal
             </Link>
           </p>
+        </div>
+
+        {/* Demo credentials */}
+        <div className="mt-8 p-4 bg-muted rounded-md">
+          <h3 className="font-medium text-sm mb-2">Demo Accounts:</h3>
+          <div className="grid gap-2 text-xs">
+            <div>
+              <p><strong>Admin:</strong> admin@example.com / password</p>
+            </div>
+            <div>
+              <p><strong>Manager:</strong> manager@example.com / password</p>
+            </div>
+            <div>
+              <p><strong>Staff:</strong> staff@example.com / password</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
